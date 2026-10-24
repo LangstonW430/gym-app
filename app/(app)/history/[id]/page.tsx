@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Pencil, Plus, Trash2, Trophy, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { BodyHeatMap, heatFromScores, HeatLegend } from "@/components/body-map";
 import { Page, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +58,13 @@ export default function WorkoutDetailPage() {
           ))}
         </div>
         {workout.notes && <p className="rounded-xl bg-muted p-3 text-sm whitespace-pre-wrap">{workout.notes}</p>}
+
+        <Card>
+          <CardContent className="flex flex-col gap-2 p-4">
+            <BodyHeatMap heat={heatFromScores(summary.musclesSets, "workout")} className="mx-auto w-full max-w-xs" />
+            <HeatLegend scale="workout" className="justify-center" />
+          </CardContent>
+        </Card>
 
         {workout.exercises.map((slot) => {
           const ex = exById.get(slot.exerciseId);

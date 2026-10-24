@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { Trophy } from "lucide-react";
 import Link from "next/link";
+import { BodyHeatMap, heatFromExercise } from "@/components/body-map";
 import { Sparkline } from "@/components/charts/sparkline";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { api } from "@/convex/_generated/api";
@@ -33,10 +34,18 @@ export function ExerciseHistorySheet({
         {data === undefined ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Loading… (needs a connection)</p>
         ) : sessions.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">No history for this exercise yet.</p>
+          <div className="flex flex-col items-center gap-2 py-4">
+            <BodyHeatMap heat={heatFromExercise(data.exercise)} className="w-44" />
+            <p className="text-sm text-muted-foreground">No history for this exercise yet.</p>
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <Sparkline data={sessions.map((s) => ({ x: s.date, y: s.e1rm }))} format={(y) => fmtW(y, units)} />
+            <div className="flex items-center gap-3">
+              <BodyHeatMap heat={heatFromExercise(data.exercise)} className="w-28 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <Sparkline data={sessions.map((s) => ({ x: s.date, y: s.e1rm }))} format={(y) => fmtW(y, units)} />
+              </div>
+            </div>
             <ul className="flex flex-col gap-3">
               {sessions
                 .slice(-5)

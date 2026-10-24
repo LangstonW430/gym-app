@@ -120,3 +120,57 @@ input[type="number"] {
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Body heat map (components/body-map.tsx). Muscle regions come from
+   react-muscle-map; each region's fill is a per-muscle CSS variable that the
+   component sets to one of the heat colors below. */
+:root {
+  --heat-0: #e6e5e1;
+  --heat-1: #f2c94c;
+  --heat-2: #f08a24;
+  --heat-3: #e0403e;
+  --body-outline: #c9c8c2;
+}
+.dark {
+  --heat-0: #2c2c2a;
+  --heat-1: #e4b934;
+  --heat-2: #ec7d1c;
+  --heat-3: #e8463f;
+  --body-outline: #45443f;
+}
+.body-map .muscle-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.body-map .muscle-map__group {
+  color: var(--heat-0);
+}
+.body-map .muscle-map__group path {
+  stroke: var(--body-outline);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+/* Neck, abductors and adductors are approximated regions: hide them unless lit. */
+.body-map .muscle-map__inferred[data-state="inactive"] {
+  opacity: 0;
+}
+.body-map [data-muscle="abdominals"] { color: var(--bm-abdominals, var(--heat-0)); }
+.body-map [data-muscle="abductors"] { color: var(--bm-abductors, var(--heat-0)); }
+.body-map [data-muscle="adductors"] { color: var(--bm-adductors, var(--heat-0)); }
+.body-map [data-muscle="biceps"] { color: var(--bm-biceps, var(--heat-0)); }
+.body-map [data-muscle="calves"] { color: var(--bm-calves, var(--heat-0)); }
+.body-map [data-muscle="chest"] { color: var(--bm-chest, var(--heat-0)); }
+.body-map [data-muscle="forearms"] { color: var(--bm-forearms, var(--heat-0)); }
+.body-map [data-muscle="glutes"] { color: var(--bm-glutes, var(--heat-0)); }
+.body-map [data-muscle="hands"] { color: var(--bm-hands, var(--heat-0)); }
+.body-map [data-muscle="hamstrings"] { color: var(--bm-hamstrings, var(--heat-0)); }
+.body-map [data-muscle="lats"] { color: var(--bm-lats, var(--heat-0)); }
+.body-map [data-muscle="lower back"] { color: var(--bm-lower-back, var(--heat-0)); }
+.body-map [data-muscle="middle back"] { color: var(--bm-middle-back, var(--heat-0)); }
+.body-map [data-muscle="neck"] { color: var(--bm-neck, var(--heat-0)); }
+.body-map [data-muscle="obliques"] { color: var(--bm-obliques, var(--heat-0)); }
+.body-map [data-muscle="quadriceps"] { color: var(--bm-quadriceps, var(--heat-0)); }
+.body-map [data-muscle="shoulders"] { color: var(--bm-shoulders, var(--heat-0)); }
+.body-map [data-muscle="traps"] { color: var(--bm-traps, var(--heat-0)); }
+.body-map [data-muscle="triceps"] { color: var(--bm-triceps, var(--heat-0)); }
