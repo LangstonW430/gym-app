@@ -37,7 +37,7 @@ export function SignIn() {
             setError(
               flow === "signIn"
                 ? "Couldn't sign in. Check your email and password."
-                : `Couldn't create the account. ${err instanceof Error && /allowed/i.test(err.message) ? "This email isn't allowed." : "Passwords need 8+ characters; the email may already be registered."}`,
+                : `Couldn't create the account. ${err instanceof Error && /allowed|locked/i.test(err.message) ? "This app is private to its owner." : "Passwords need 8+ characters; the email may already be registered."}`,
             );
           } finally {
             setBusy(false);
