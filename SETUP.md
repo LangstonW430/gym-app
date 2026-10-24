@@ -26,7 +26,7 @@ npx @convex-dev/auth    # sets JWT_PRIVATE_KEY, JWKS and SITE_URL on the dev dep
                         # when asked for the site URL, use http://localhost:3000
 ```
 
-Optional but recommended — only your email can create an account:
+Required — the app is locked to the emails listed here (nobody can sign in if it's unset):
 
 ```bash
 npx convex env set ALLOWED_EMAILS you@example.com
@@ -58,7 +58,7 @@ and start a workout.
 
    ```bash
    npx @convex-dev/auth --prod          # site URL: your Vercel URL
-   npx convex env set ALLOWED_EMAILS you@example.com --prod
+   npx convex env set ALLOWED_EMAILS you@example.com --prod   # required, or nobody can sign in
    ```
 
 6. Open the Vercel URL and create your account (production has its own database,
