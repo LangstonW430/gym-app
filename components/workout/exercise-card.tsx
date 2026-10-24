@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Textarea } from "@/components/ui/input";
 import { fromDisplay, SET_TYPES, toDisplay, type SetType, type Units } from "@/convex/lib/shared";
 import { blankSet, editWorkout, type LocalExercise, type LocalSet } from "@/lib/active-workout";
-import { fmtDuration, fmtNum, SET_TYPE_LABEL } from "@/lib/format";
+import { fmtDuration, fmtNum, fmtRelativeDay, SET_TYPE_LABEL } from "@/lib/format";
 import { haptic } from "@/lib/hooks";
 import { incrementKgFor } from "@/lib/start-workout";
 import { cn } from "@/lib/utils";
@@ -129,6 +129,19 @@ export function ExerciseCard({
             {ex.repMin ? `${ex.repMin === ex.repMax ? ex.repMin : `${ex.repMin}–${ex.repMax}`} reps · ` : ""}
             rest {fmtDuration(ex.restSec)} · {doneCount}/{sets.length} done
           </p>
+          {ex.last ? (
+            <p className="num mt-1 text-xs">
+              <span className="font-medium text-foreground">Last time</span>
+              <span className="text-muted-foreground"> ({fmtRelativeDay(ex.last.date)}): </span>
+              <span className="text-foreground">
+                {ex.last.sets
+                  .map((s) => `${s.setType === "warmup" ? "W " : ""}${fmtNum(toDisplay(s.weight, units))}×${s.reps}`)
+                  .join(", ")}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">No finished workout with this exercise yet</p>
+          )}
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger className="grid size-11 place-items-center rounded-lg hover:bg-muted" aria-label="Exercise menu">

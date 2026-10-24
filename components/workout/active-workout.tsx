@@ -1,10 +1,10 @@
 "use client";
 
-import { useConvex, useMutation } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import { ChevronDown, CloudOff, Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
   editWorkout,
+  patchLocal,
   setWorkout,
   type LocalExercise,
   type LocalSet,
@@ -43,6 +44,19 @@ export function ActiveWorkout({ w }: { w: LocalWorkout }) {
 
   // When the sync loop completes the finish, show the summary.
   useEffect(() => onWorkoutFinished((id) => router.replace(`/workout/summary/${id}`)), [router]);
+
+  // "Last time" is captured when the workout starts, but a workout resumed on
+  // another device or started offline won't have it: fill gaps from a live query.
+  const idKey = [...new Set(w.exercises.map((e) => e.exerciseId))].sort().join(",");
+  const exerciseIds = useMemo(() => idKey.split(",").filter(Boolean) as Doc<"exercises">["_id"][], [idKey]);
+  const liveLast = useQuery(api.workouts.lastSets, exerciseIds.length ? { exerciseIds, excludeWorkoutId: w.serverId } : "skip");
+  useEffect(() => {
+    if (!liveLast || !w.exercises.some((e) => !e.last && liveLast[e.exerciseId])) return;
+    patchLocal((x) => ({
+      ...x,
+      exercises: x.exercises.map((e) => (!e.last && liveLast[e.exerciseId] ? { ...e, last: liveLast[e.exerciseId] } : e)),
+    }));
+  }, [liveLast, w.exercises]);
 
   async function fetchLast(exerciseId: Doc<"exercises">["_id"]) {
     try {
