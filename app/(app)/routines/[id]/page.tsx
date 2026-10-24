@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Archive, Copy, Link2, Plus, Trash2, Unlink } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { BodyHeatMap, heatFromScores, HeatLegend, scoresFromPlan } from "@/components/body-map";
 import { ExercisePicker } from "@/components/exercise-picker";
 import { Page, PageHeader } from "@/components/page-header";
 import { SortableList } from "@/components/sortable-list";
@@ -29,6 +30,8 @@ interface Item {
   defaultRest: number;
   supersetGroup?: string;
   notes?: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
 }
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -67,6 +70,8 @@ export default function RoutineEditorPage() {
           defaultRest: it.exercise!.defaultRestSec,
           supersetGroup: it.supersetGroup,
           notes: it.notes,
+          primaryMuscle: it.exercise!.primaryMuscle,
+          secondaryMuscles: it.exercise!.secondaryMuscles,
         })),
     );
   }
@@ -216,6 +221,22 @@ export default function RoutineEditorPage() {
           <Plus /> Add exercise
         </Button>
 
+        {items.length > 0 && (
+          <Card>
+            <CardContent className="flex items-center gap-3 p-3">
+              <BodyHeatMap
+                heat={heatFromScores(scoresFromPlan(items.map((x) => ({ sets: x.targetSets, exercise: x }))), "workout")}
+                className="w-36 shrink-0"
+                title="Muscles this routine works"
+              />
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">What this routine hits</p>
+                <HeatLegend scale="workout" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Textarea
           value={notes}
           placeholder="Routine notes"
@@ -267,7 +288,17 @@ export default function RoutineEditorPage() {
           setPicker(false);
           change([
             ...items,
-            { id: uid(), exerciseId: e._id, name: e.name, targetSets: 3, repMin: 8, repMax: 12, defaultRest: e.defaultRestSec },
+            {
+              id: uid(),
+              exerciseId: e._id,
+              name: e.name,
+              targetSets: 3,
+              repMin: 8,
+              repMax: 12,
+              defaultRest: e.defaultRestSec,
+              primaryMuscle: e.primaryMuscle,
+              secondaryMuscles: e.secondaryMuscles,
+            },
           ]);
         }}
       />

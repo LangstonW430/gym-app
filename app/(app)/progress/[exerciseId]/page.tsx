@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Pin, PinOff, Trophy } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { BodyHeatMap, heatFromExercise, HeatLegend } from "@/components/body-map";
 import { TimeLineChart } from "@/components/charts/charts";
 import { Empty, Page, PageHeader, Section } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,22 @@ export default function ExerciseProgressPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardContent className="flex items-center gap-3 p-3">
+            <BodyHeatMap heat={heatFromExercise(exercise)} className="w-40 shrink-0" title={`${exercise.name}: muscles worked`} />
+            <div className="flex flex-col gap-2 text-sm">
+              <p>
+                <span className="font-medium">Primary:</span> {titleCase(exercise.primaryMuscle)}
+              </p>
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">Secondary:</span>{" "}
+                {exercise.secondaryMuscles.length ? exercise.secondaryMuscles.map(titleCase).join(", ") : "—"}
+              </p>
+              <HeatLegend scale="exercise" />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="flex flex-col gap-3 p-3">

@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { CheckCircle2, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { BodyHeatMap, heatFromScores, HeatLegend } from "@/components/body-map";
 import { Page } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,7 +55,10 @@ export default function SummaryPage() {
       )}
       <Card>
         <CardContent className="flex flex-col gap-2 p-4">
-          <p className="font-semibold">Sets per muscle</p>
+          <p className="font-semibold">Muscles worked</p>
+          <BodyHeatMap heat={heatFromScores(s.musclesSets, "workout")} className="mx-auto w-full max-w-xs" />
+          <HeatLegend scale="workout" className="justify-center" />
+          <p className="mt-2 font-semibold">Sets per muscle</p>
           <ul className="flex flex-col gap-2">
             {muscles.map(([m, n]) => (
               <li key={m} className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-2 text-sm">

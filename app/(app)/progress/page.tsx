@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { ChevronRight, Pin, Scale, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { BodyHeatMap, heatFromScores, HeatLegend } from "@/components/body-map";
 import { MuscleSetsChart, WeeklyCountChart } from "@/components/charts/charts";
 import { Empty, Page, PageHeader, Section } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,6 +125,8 @@ export default function ProgressPage() {
             <CardContent className="p-3">
               {muscleRows.length ? (
                 <>
+                  <BodyHeatMap heat={heatFromScores(weekData?.muscles ?? {}, "week")} className="mx-auto w-full max-w-xs" />
+                  <HeatLegend scale="week" className="mb-3 justify-center" />
                   <MuscleSetsChart data={muscleRows} band={WEEKLY_SET_TARGET} />
                   <p className="mt-2 text-xs text-muted-foreground">
                     Shaded band: {WEEKLY_SET_TARGET.min}–{WEEKLY_SET_TARGET.max} working sets/week. Secondary muscles count half.
