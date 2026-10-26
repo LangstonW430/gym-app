@@ -75,3 +75,24 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+// Web Push: the server sends rest-timer alerts so they arrive on the lock
+// screen even while the page is suspended. Payload: { title, body, tag, silent, url }.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {}
+  const title = data.title || "Gym Tracker";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      tag: data.tag || "gym",
+      renotify: !data.silent,
+      silent: !!data.silent,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/workout" },
+    }),
+  );
+});

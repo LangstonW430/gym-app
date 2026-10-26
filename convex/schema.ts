@@ -178,6 +178,27 @@ export default defineSchema({
     weight: v.number(),
   }).index("by_user_date", ["userId", "date"]),
 
+  // Web Push (lock-screen rest alerts). One row per browser/device.
+  pushSubscriptions: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    keys: v.object({ p256dh: v.string(), auth: v.string() }),
+    label: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
+
+  // The one pending rest alert per user; the scheduled push is cancelled and
+  // re-created whenever the timer is adjusted or skipped.
+  restAlerts: defineTable({
+    userId: v.id("users"),
+    endsAt: v.number(),
+    title: v.string(),
+    body: v.string(),
+    scheduledId: v.id("_scheduled_functions"),
+  }).index("by_user", ["userId"]),
+
   mcpTokens: defineTable({
     userId: v.id("users"),
     tokenHash: v.string(),
