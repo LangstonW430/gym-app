@@ -20,7 +20,8 @@ import {
   type LocalSet,
   type LocalWorkout,
 } from "@/lib/active-workout";
-import { fmtDuration } from "@/lib/format";
+import { fmtDuration, fmtNum } from "@/lib/format";
+import { toDisplay } from "@/convex/lib/shared";
 import { haptic, useNow } from "@/lib/hooks";
 import { useSettings } from "@/lib/settings";
 import { localExercise, prefillSets } from "@/lib/start-workout";
@@ -121,7 +122,20 @@ export function ActiveWorkout({ w }: { w: LocalWorkout }) {
     if (group[group.length - 1].key === ex.key) {
       const nextEx = w.exercises[w.exercises.findIndex((e) => e.key === ex.key) + 1];
       const hasMore = w.sets.some((s) => s.exerciseKey === ex.key && !s.completedAt && s.clientId !== set.clientId);
-      startRest(ex.restSec, hasMore ? (group.length > 1 ? `Superset ${ex.supersetGroup}` : ex.name) : nextEx?.name ?? ex.name);
+      const target = hasMore ? ex : nextEx ?? ex;
+      const targetSets = w.sets.filter((s) => s.exerciseKey === target.key);
+      const nextIdx = hasMore ? targetSets.findIndex((s) => s.clientId === set.clientId) + 1 : targetSets.findIndex((s) => !s.completedAt);
+      const nextSet = targetSets[nextIdx];
+      const nextLast = target.last?.sets[nextIdx];
+      const planned = nextSet?.weight != null && nextSet.reps != null ? `${fmtNum(toDisplay(nextSet.weight, units))}×${nextSet.reps}` : null;
+      const detail = [
+        nextIdx >= 0 ? `Set ${nextIdx + 1} of ${targetSets.length}` : null,
+        planned ? `planned ${planned}` : null,
+        nextLast ? `last time ${fmtNum(toDisplay(nextLast.weight, units))}×${nextLast.reps}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      startRest(ex.restSec, hasMore ? (group.length > 1 ? `Superset ${ex.supersetGroup}` : ex.name) : nextEx?.name ?? ex.name, detail || undefined);
     }
   }
 

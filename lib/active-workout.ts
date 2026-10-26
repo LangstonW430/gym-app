@@ -61,7 +61,7 @@ export interface LocalWorkout {
   serverId?: Id<"workouts">;
   /** Set when Finish was tapped; the sync loop completes it once online. */
   finishedAt?: number;
-  rest?: { endsAt: number; totalSec: number; label: string } | null;
+  rest?: { endsAt: number; totalSec: number; label: string; detail?: string } | null;
 }
 
 const KEY = "gym.activeWorkout.v1";

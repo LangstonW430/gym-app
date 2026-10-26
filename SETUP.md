@@ -78,6 +78,27 @@ so the rest-timer notification only fires reliably if the app is open or was jus
 backgrounded. The countdown itself is timestamp-based, so it's always correct when
 you come back.
 
+## 3b. Lock-screen rest alerts (optional)
+
+The rest timer can send a notification when rest starts (with your next set) and
+when it ends, delivered by the server so it shows on the lock screen even while
+the phone is locked. One-time setup:
+
+```bash
+npx web-push generate-vapid-keys        # prints a public and a private key
+npx convex env set VAPID_PUBLIC_KEY  <public key>
+npx convex env set VAPID_PRIVATE_KEY <private key>
+npx convex env set VAPID_SUBJECT     mailto:you@example.com
+```
+
+Add `--prod` to each `convex env set` for the production deployment. Then on the
+phone: open the app **from the Home Screen icon** (iPhone requires that — a
+Safari tab can't receive push), go to Profile → Lock-screen rest alerts → **Turn
+on for this device**, and allow notifications.
+
+A live countdown on the lock screen (an iOS "Live Activity") isn't possible from
+a web app; this is the closest the platform allows.
+
 ## 4. Connect Claude
 
 1. In the app: **Profile → Claude connection → Create connector URL**. Copy it —

@@ -1,14 +1,16 @@
 "use client";
 
+import { useMutation, useQuery } from "convex/react";
 import { Timer } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { api } from "@/convex/_generated/api";
 import { patchLocal, useLocalWorkout } from "@/lib/active-workout";
 import { fmtDuration } from "@/lib/format";
 import { haptic, useNow } from "@/lib/hooks";
 
-export function startRest(totalSec: number, label: string) {
+export function startRest(totalSec: number, label: string, detail?: string) {
   if (totalSec <= 0) return;
-  patchLocal((w) => ({ ...w, rest: { endsAt: Date.now() + totalSec * 1000, totalSec, label } }));
+  patchLocal((w) => ({ ...w, rest: { endsAt: Date.now() + totalSec * 1000, totalSec, label, detail } }));
   // Ask once, from a user gesture (set completion), so the timer can notify.
   if (typeof Notification !== "undefined" && Notification.permission === "default") {
     void Notification.requestPermission().catch(() => {});
@@ -50,6 +52,30 @@ export function RestTimer() {
   const fired = useRef<number | null>(null);
   const rest = w?.rest;
   const remaining = rest ? Math.ceil((rest.endsAt - now) / 1000) : 0;
+
+  // Mirror the timer to the server so a push alert lands on the lock screen at
+  // zero (the page itself is suspended while the phone is locked). Only when
+  // this account has a registered device; otherwise it's a no-op.
+  const push = useQuery(api.push.status);
+  const scheduleRest = useMutation(api.push.scheduleRest);
+  const cancelRest = useMutation(api.push.cancelRest);
+  const synced = useRef<{ endsAt: number; label: string } | null>(null);
+  useEffect(() => {
+    if (!push || push.devices.length === 0) return;
+    if (rest && rest.endsAt > Date.now()) {
+      if (synced.current?.endsAt === rest.endsAt) return;
+      const fresh = synced.current?.label !== rest.label;
+      synced.current = { endsAt: rest.endsAt, label: rest.label };
+      const t = setTimeout(() => {
+        void scheduleRest({ endsAt: rest.endsAt, title: rest.label, body: rest.detail ?? "Next set", announce: fresh }).catch(() => {});
+      }, 400);
+      return () => clearTimeout(t);
+    }
+    if (!rest && synced.current) {
+      synced.current = null;
+      void cancelRest().catch(() => {});
+    }
+  }, [rest, push, scheduleRest, cancelRest]);
 
   useEffect(() => {
     if (!rest || remaining > 0 || fired.current === rest.endsAt) return;

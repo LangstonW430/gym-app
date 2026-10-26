@@ -2,9 +2,9 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useMutation, useQuery } from "convex/react";
-import { Bot, Copy, Download, LogOut, Moon, Sun, Upload } from "lucide-react";
+import { BellRing, Bot, Copy, Download, LogOut, Moon, Sun, Upload } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Page, PageHeader, Section } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import type { Units } from "@/convex/lib/shared";
 import { fmtDate, fmtRelativeDay } from "@/lib/format";
 import { bodyweightCsv, download, parseWorkoutCsv, setsCsv } from "@/lib/import-export";
 import { useSettings } from "@/lib/settings";
+import { currentSubscription, deviceLabel, isIOS, isStandalone, pushSupported, subscribePush, unsubscribePush } from "@/lib/push";
 import { getTheme, setTheme, type Theme } from "@/lib/theme";
 
 export default function ProfilePage() {
@@ -103,6 +104,7 @@ export default function ProfilePage() {
           </Card>
         </Section>
 
+        <PushAlerts />
         <ClaudeConnection />
         <DataSection units={s.units} />
 
@@ -322,6 +324,99 @@ function DataSection({ units }: { units: Units }) {
             </label>
             {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
           </div>
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function PushAlerts() {
+  const status = useQuery(api.push.status);
+  const subscribe = useMutation(api.push.subscribe);
+  const unsubscribe = useMutation(api.push.unsubscribe);
+  const [endpoint, setEndpoint] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void currentSubscription().then((s) => setEndpoint(s?.endpoint ?? null));
+  }, []);
+  const supported = pushSupported();
+  const thisDeviceOn = !!endpoint && !!status?.devices.some((d) => d.endpoint === endpoint);
+  const needsInstall = isIOS() && !isStandalone();
+
+  return (
+    <Section title="Lock-screen rest alerts">
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <BellRing className="size-6 text-primary" />
+            <div className="flex-1">
+              <p className="font-medium">Rest timer notifications</p>
+              <p className="text-xs text-muted-foreground">
+                A banner when rest starts (with your next set) and one when it ends — even with the phone locked.
+              </p>
+            </div>
+            {thisDeviceOn && <Badge variant="success">On</Badge>}
+          </div>
+          {!status?.publicKey ? (
+            <p className="text-sm text-muted-foreground">Not set up on the server yet — see SETUP.md (VAPID keys).</p>
+          ) : needsInstall ? (
+            <p className="text-sm text-muted-foreground">
+              On iPhone this needs the app on your Home Screen: in Safari tap Share → <b>Add to Home Screen</b>, open it from there, then come back here.
+            </p>
+          ) : !supported ? (
+            <p className="text-sm text-muted-foreground">This browser doesn&apos;t support push notifications.</p>
+          ) : thisDeviceOn ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const ep = await unsubscribePush();
+                  if (ep) await unsubscribe({ endpoint: ep });
+                  setEndpoint(null);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Turn off on this device
+            </Button>
+          ) : (
+            <Button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setMsg(null);
+                try {
+                  const sub = await subscribePush(status.publicKey!);
+                  await subscribe({ ...sub, label: deviceLabel() });
+                  setEndpoint(sub.endpoint);
+                } catch (e) {
+                  setMsg(e instanceof Error ? e.message : "Couldn't enable notifications");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Turn on for this device
+            </Button>
+          )}
+          {msg && <p className="text-sm text-destructive">{msg}</p>}
+          {status && status.devices.length > 0 && (
+            <ul className="divide-y rounded-lg border text-sm">
+              {status.devices.map((d) => (
+                <li key={d._id} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1">
+                    {d.label}
+                    {d.endpoint === endpoint ? " (this device)" : ""}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{fmtDate(d.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </Section>
