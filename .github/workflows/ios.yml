@@ -1,0 +1,93 @@
+name: iOS app
+
+# Builds the unsigned iPhone app (Capacitor shell + rest-timer Live Activity)
+# and attaches Gym.ipa to the "ios-latest" GitHub release. Install it with
+# SideStore or AltStore using a free Apple ID; see IOS.md.
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "Deployed site URL (defaults to the APP_URL repository variable)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ios.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      APP_URL: ${{ inputs.app_url || vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check APP_URL
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set the APP_URL repository variable (Settings → Secrets and variables → Actions → Variables) to your deployed site, e.g. https://gym-tracker-you.vercel.app"
+            exit 1
+          fi
+          echo "Shell will load $APP_URL"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - name: Build (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/build \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee ios/build/xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD|Compiling|Linking" || true
+          grep -q "BUILD SUCCEEDED" ios/build/xcodebuild.log
+
+      - name: Package IPA
+        run: |
+          rm -rf ios/build/Payload && mkdir -p ios/build/Payload
+          cp -R ios/build/Build/Products/Release-iphoneos/App.app ios/build/Payload/
+          ls ios/build/Payload/App.app/PlugIns
+          (cd ios/build && zip -qr Gym.ipa Payload)
+          ls -la ios/build/Gym.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gym.ipa
+          path: ios/build/Gym.ipa
+
+      - name: Publish to the ios-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ios-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create ios-latest --repo "$GITHUB_REPOSITORY" --title "iPhone app (latest build)" \
+              --notes "Unsigned build of the Gym iPhone app. Install with SideStore/AltStore; see IOS.md." --latest=false
+          gh release upload ios-latest ios/build/Gym.ipa --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit ios-latest --repo "$GITHUB_REPOSITORY" --notes "Unsigned build of the Gym iPhone app from ${GITHUB_SHA::7} ($(date -u +%Y-%m-%d)). Install with SideStore/AltStore; see IOS.md."
