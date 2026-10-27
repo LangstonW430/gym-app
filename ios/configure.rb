@@ -41,6 +41,7 @@ unless ext
   ext = project.new_target(:app_extension, "RestActivity", :ios, MIN_IOS)
   ext.build_configurations.each do |c|
     c.build_settings.merge!(
+      "PRODUCT_NAME" => "RestActivity",
       "PRODUCT_BUNDLE_IDENTIFIER" => "#{BUNDLE_ID}.RestActivity",
       "INFOPLIST_FILE" => "RestActivity/Info.plist",
       "GENERATE_INFOPLIST_FILE" => "NO",
@@ -63,6 +64,8 @@ unless ext
   bf = embed.add_file_reference(ext.product_reference)
   bf.settings = { "ATTRIBUTES" => ["RemoveHeadersOnCopy"] }
 end
+
+ext.build_configurations.each { |c| c.build_settings["PRODUCT_NAME"] = "RestActivity" }
 
 # Swift auto-links SwiftUI/WidgetKit/ActivityKit on import; explicit framework
 # references would pin an SDK path that differs between Xcode versions.
