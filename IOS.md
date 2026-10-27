@@ -9,7 +9,7 @@ needs rebuilding when something under `ios/` changes.
 
 No Mac and no paid developer account are needed: GitHub Actions builds the
 app on a macOS runner, and SideStore or AltStore installs it with a free
-Apple ID from a Windows or Linux PC.
+Apple ID from a Windows or Linux PC (one-time setup).
 
 ## 1. Build it (GitHub Actions)
 
@@ -24,36 +24,52 @@ Apple ID from a Windows or Linux PC.
 
 ## 2. Install it (SideStore, free Apple ID)
 
-You need a Windows or Linux PC once, for pairing. After that the phone
-refreshes the app on its own.
+Checked against <https://docs.sidestore.io/docs/installation/prerequisites>
+(October 2026). You need a 64-bit Windows, Linux or macOS computer once;
+after that the phone refreshes the app on its own.
 
-1. On the PC, follow the SideStore install guide at
-   <https://docs.sidestore.io/docs/getting-started/>. In short: install
-   iTunes and iCloud from Apple's site (not the Microsoft Store), install
-   SideStore's companion app (AltServer), plug in the phone, and install
-   SideStore from the AltServer tray icon. Sign in with your Apple ID: it is
-   used only to request a free development certificate.
-2. iOS hides Developer Mode until a developer tool has talked to the phone,
-   so it only appears now: **Settings → Privacy & Security**, scroll to the
-   bottom, **Developer Mode → on**, restart when asked.
-3. On the phone, open SideStore once, let it set up its VPN profile, and
-   copy the pairing file when the guide asks.
-4. Open the **ios-latest** release page in Safari on the phone, download
-   `Gym.ipa`, then in SideStore tap **+** and pick the file. Include the
-   **RestActivity** extension when it asks: that is the lock-screen widget.
-5. **Settings → Gym → Live Activities → on** (and allow notifications when
-   the app first asks).
+### One-time SideStore setup
 
-AltStore works the same way, except refreshes happen only while the phone
-is on the same Wi-Fi as the PC running AltServer.
+1. On the phone, install **LocalDevVPN** from the App Store
+   (<https://apps.apple.com/app/localdevvpn/id6755608044>). Open it, tap
+   Connect, and allow the VPN configuration. It only talks to the phone
+   itself; no data or battery cost.
+2. On the PC, install iTunes (Microsoft Store or Apple's site, either works).
+3. Install **iloader**:
+   <https://github.com/nab138/iloader/releases/latest/download/iloader-windows-x64.msi>.
+4. Plug the phone in with a cable, unlock it, tap **Trust**.
+5. Open iloader, sign in with your Apple ID (used only to request a free
+   development certificate), select the phone, choose
+   **Install SideStore (Stable)**.
+6. On the phone: **Settings → General → VPN & Device Management**, tap the
+   "Developer App" entry with your Apple ID, then **Trust** (iOS 18+: **Allow
+   & Restart**, enter your passcode).
+7. **Settings → Privacy & Security**, scroll to the bottom, turn on
+   **Developer Mode**. The phone restarts. (The toggle is hidden until
+   step 6 has happened.)
+8. Open LocalDevVPN and tap Connect. Open SideStore, sign in with the same
+   Apple ID, go to **My Apps**, tap the **7 DAYS** counter next to SideStore
+   to finish setup. Tap Yes if asked to create a signing certificate.
+
+### Installing the Gym app
+
+1. In Safari on the phone, open the **ios-latest** release page and download
+   `Gym.ipa`.
+2. With LocalDevVPN connected, open SideStore → **My Apps** → **+** and pick
+   `Gym.ipa` from Downloads. If it asks about app extensions, include them:
+   **RestActivity** is the lock-screen widget.
+3. **Settings → Gym → Live Activities → on**. Open the app and allow
+   notifications when it asks.
 
 ### What to expect on a free Apple ID
 
-- The certificate lasts 7 days. SideStore refreshes it in the background;
-  if it can't (no VPN profile, phone off for a week), the app shows
-  "Unable to verify" until you open SideStore and tap **Refresh**.
-- At most 3 sideloaded apps at a time, and 10 app IDs per week. This app
-  uses two IDs (app + widget).
+- Apps expire after 7 days. SideStore refreshes them in the background
+  while LocalDevVPN is connected. If Gym shows "Unable to verify", open
+  SideStore and tap its days counter.
+- At most 3 sideloaded apps at a time (SideStore counts as one) and 10 app
+  IDs per week. This app uses two IDs (app + widget).
+- If a phone update or reset breaks SideStore, plug into the PC, open
+  iloader, and use **Manage Pairing File → Place** next to SideStore.
 - No push notifications from the server. In the native shell the rest alert
   is a local notification scheduled on the phone, so nothing is lost.
 
