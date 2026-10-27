@@ -1,5 +1,15 @@
 import { describe, expect, test } from "vitest";
-import { e1rm, fromDisplay, platesPerSide, suggestNext, toDisplay } from "@/convex/lib/shared";
+import {
+  e1rm,
+  fromDisplay,
+  movementPattern,
+  platesPerSide,
+  rankSimilar,
+  similarity,
+  suggestNext,
+  toDisplay,
+  type Equipment,
+} from "@/convex/lib/shared";
 import { parseWorkoutCsv } from "@/lib/import-export";
 
 describe("double progression", () => {
@@ -70,5 +80,52 @@ describe("import", () => {
     expect(workouts.map((w) => w.name)).toEqual(["Legs", "Upper"]);
     expect(workouts[0].sets.map((s) => s.setType)).toEqual(["warmup", "working"]);
     expect(workouts[0].sets[1].weight).toBe(140);
+  });
+});
+
+describe("exercise similarity", () => {
+  const ex = (name: string, primary: string, secondary: string[], equipment: Equipment, isBodyweight = false) => ({
+    name,
+    primaryMuscle: primary,
+    secondaryMuscles: secondary,
+    equipment,
+    isBodyweight,
+  });
+  const bench = ex("Bench Press (Barbell)", "chest", ["triceps", "front delts"], "barbell");
+  const library = [
+    ex("Squat (Barbell)", "quads", ["glutes", "adductors"], "barbell"),
+    ex("Hammer Curl", "biceps", ["forearms"], "dumbbell"),
+    ex("Chest Fly (Dumbbell)", "chest", ["front delts"], "dumbbell"),
+    ex("Bench Press (Dumbbell)", "chest", ["triceps", "front delts"], "dumbbell"),
+    ex("Push-Up", "chest", ["triceps", "front delts"], "bodyweight", true),
+    ex("Incline Bench Press (Barbell)", "chest", ["front delts", "triceps"], "barbell"),
+    ex("Close-Grip Bench Press", "triceps", ["chest", "front delts"], "barbell"),
+    ex("Chest Press (Machine)", "chest", ["triceps", "front delts"], "machine"),
+  ];
+
+  test("ranks same-muscle, same-movement variants first and drops unrelated lifts", () => {
+    const names = rankSimilar(bench, library).map((r) => r.exercise.name);
+    expect(names[0]).toBe("Incline Bench Press (Barbell)");
+    expect(names.slice(1, 4)).toEqual(["Bench Press (Dumbbell)", "Chest Press (Machine)", "Push-Up"]);
+    expect(names).not.toContain("Squat (Barbell)");
+    expect(names).not.toContain("Hammer Curl");
+    // Secondary-muscle relatives still make the list, below the primary matches.
+    expect(names.indexOf("Close-Grip Bench Press")).toBeGreaterThan(names.indexOf("Chest Fly (Dumbbell)"));
+  });
+
+  test("explains the match", () => {
+    const { reasons } = similarity(bench, library[5]);
+    expect(reasons).toEqual(["Same muscle", "Same movement", "Same equipment"]);
+    expect(similarity(bench, library[6]).reasons[0]).toBe("Hits chest");
+    expect(similarity(bench, library[0])).toEqual({ score: 13, reasons: ["Same equipment"] });
+  });
+
+  test("movement patterns", () => {
+    expect(movementPattern("Lat Pulldown (Cable)")).toBe("vertical pull");
+    expect(movementPattern("Romanian Deadlift")).toBe("hinge");
+    expect(movementPattern("Leg Extension")).toBe("triceps extension");
+    expect(movementPattern("Leg Press")).toBe("squat");
+    expect(movementPattern("Chest Dip")).toBe("press");
+    expect(movementPattern("Farmer's Walk")).toBeNull();
   });
 });
