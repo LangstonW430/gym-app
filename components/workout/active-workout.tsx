@@ -39,6 +39,7 @@ export function ActiveWorkout({ w }: { w: LocalWorkout }) {
   const status = useSyncStatus();
 
   const [picker, setPicker] = useState<{ mode: "add" } | { mode: "swap"; key: string } | null>(null);
+  const swapping = picker?.mode === "swap" ? w.exercises.find((e) => e.key === picker.key) : undefined;
   const [historyFor, setHistoryFor] = useState<LocalExercise | null>(null);
   const [plates, setPlates] = useState<number | null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
@@ -224,6 +225,15 @@ export function ActiveWorkout({ w }: { w: LocalWorkout }) {
         onOpenChange={(o) => !o && setPicker(null)}
         title={picker?.mode === "swap" ? "Swap exercise" : "Add exercise"}
         onPick={(doc) => (picker?.mode === "swap" ? swapExercise(picker.key, doc) : addExercise(doc))}
+        similarTo={
+          swapping && {
+            exerciseId: swapping.exerciseId,
+            name: swapping.name,
+            primaryMuscle: swapping.primaryMuscle,
+            equipment: swapping.equipment,
+            isBodyweight: swapping.isBodyweight,
+          }
+        }
       />
       {historyFor && (
         <ExerciseHistorySheet

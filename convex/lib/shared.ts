@@ -193,3 +193,111 @@ export function uid(): string {
     Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
   );
 }
+
+// ---------------------------------------------------------------------------
+// Exercise similarity (the "Recommended" tab when swapping an exercise).
+
+export interface SimilarityInput {
+  name: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
+  equipment: Equipment;
+  isBodyweight?: boolean;
+}
+
+/** Movement patterns inferred from the name; the first matching group wins. */
+const MOVEMENT_PATTERNS: [label: string, keywords: string[]][] = [
+  ["row", ["row"]],
+  ["vertical pull", ["pulldown", "pull-up", "pull up", "chin-up", "chin up"]],
+  ["fly", ["fly", "crossover", "pec deck"]],
+  ["curl", ["curl"]],
+  ["hinge", ["deadlift", "rdl", "romanian", "good morning", "hip thrust", "glute bridge", "back extension", "hyperextension", "pull-through", "pull through"]],
+  ["squat", ["squat", "leg press", "hack", "lunge", "step-up", "step up"]],
+  ["triceps extension", ["pushdown", "skull crusher", "kickback", "extension"]],
+  ["press", ["press", "push-up", "push up", "dip"]],
+  ["shrug", ["shrug"]],
+  ["core", ["crunch", "plank", "sit-up", "sit up", "rollout", "woodchop", "leg raise"]],
+];
+
+export function movementPattern(name: string): string | null {
+  const n = name.toLowerCase();
+  for (const [label, keywords] of MOVEMENT_PATTERNS) {
+    if (keywords.some((k) => n.includes(k))) return label;
+  }
+  return null;
+}
+
+const NAME_STOP_WORDS = new Set([...EQUIPMENT, "the", "and", "with", "to", "arm", "grip", "machine", "smith", "ez", "bar"]);
+
+function nameTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .replace(/[^a-z]+/g, " ")
+      .split(" ")
+      .filter((t) => t.length > 2 && !NAME_STOP_WORDS.has(t)),
+  );
+}
+
+export interface Similarity {
+  score: number;
+  /** Short, display-ready reasons in order of weight (e.g. "Same muscle"). */
+  reasons: string[];
+}
+
+/**
+ * How alike two exercises are, 0 = unrelated. Primary muscle dominates, then
+ * movement pattern, secondary muscle overlap and equipment, with a small nudge
+ * for shared words in the name so "Incline Bench Press (Dumbbell)" lands right
+ * next to "Incline Bench Press (Barbell)".
+ */
+export function similarity(target: SimilarityInput, candidate: SimilarityInput): Similarity {
+  let score = 0;
+  const reasons: string[] = [];
+
+  if (candidate.primaryMuscle === target.primaryMuscle) {
+    score += 50;
+    reasons.push("Same muscle");
+  } else if (
+    target.secondaryMuscles.includes(candidate.primaryMuscle) ||
+    candidate.secondaryMuscles.includes(target.primaryMuscle)
+  ) {
+    score += 20;
+    reasons.push(`Hits ${target.primaryMuscle}`);
+  }
+
+  const pattern = movementPattern(target.name);
+  if (pattern && pattern === movementPattern(candidate.name)) {
+    score += 15;
+    reasons.push("Same movement");
+  }
+
+  const shared = candidate.secondaryMuscles.filter((m) => target.secondaryMuscles.includes(m)).length;
+  score += Math.min(shared, 3) * 5;
+
+  if (candidate.equipment === target.equipment) {
+    score += 10;
+    reasons.push("Same equipment");
+  }
+  if (!!candidate.isBodyweight === !!target.isBodyweight) score += 3;
+
+  const a = nameTokens(target.name);
+  const b = nameTokens(candidate.name);
+  let words = 0;
+  for (const t of a) if (b.has(t)) words++;
+  score += Math.min(words, 3) * 2;
+
+  return { score, reasons };
+}
+
+/** Candidates ranked most-similar first; unrelated ones are left out. */
+export function rankSimilar<T extends SimilarityInput>(
+  target: SimilarityInput,
+  candidates: T[],
+  minScore = 20,
+): (Similarity & { exercise: T })[] {
+  return candidates
+    .map((exercise) => ({ exercise, ...similarity(target, exercise) }))
+    .filter((r) => r.score >= minScore)
+    .sort((x, y) => y.score - x.score || x.exercise.name.localeCompare(y.exercise.name));
+}

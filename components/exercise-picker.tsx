@@ -5,10 +5,11 @@ import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { api } from "@/convex/_generated/api";
-import type { Doc } from "@/convex/_generated/dataModel";
-import { EQUIPMENT, MUSCLES, type Equipment } from "@/convex/lib/shared";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
+import { EQUIPMENT, MUSCLES, rankSimilar, type Equipment, type SimilarityInput } from "@/convex/lib/shared";
 import { titleCase } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -57,65 +58,151 @@ export function ExerciseFilters({ f }: { f: ReturnType<typeof useExerciseFilter>
   );
 }
 
+/** The exercise being replaced, so the picker can lead with close substitutes. */
+export interface SimilarTo extends Omit<SimilarityInput, "secondaryMuscles"> {
+  exerciseId: Id<"exercises">;
+}
+
 export function ExercisePicker({
   open,
   onOpenChange,
   onPick,
   title = "Add exercise",
+  similarTo,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onPick: (e: Doc<"exercises">) => void;
   title?: string;
+  similarTo?: SimilarTo;
 }) {
   const exercises = useQuery(api.exercises.list, open ? {} : "skip");
-  const f = useExerciseFilter(exercises);
-  const [creating, setCreating] = useState(false);
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent title={title} className="sm:max-h-[80dvh]">
-        {creating ? (
-          <CreateExerciseForm
-            initialName={f.q}
-            onDone={(e) => {
-              setCreating(false);
-              if (e) onPick(e);
-            }}
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <ExerciseFilters f={f} />
-            <Button variant="outline" onClick={() => setCreating(true)}>
-              <Plus /> Custom exercise{f.q ? ` "${f.q}"` : ""}
-            </Button>
-            {exercises === undefined ? (
-              <p className="p-4 text-center text-sm text-muted-foreground">Loading library… (needs a connection)</p>
-            ) : (
-              <ul className="-mx-4 divide-y border-y">
-                {f.filtered.map((e) => (
-                  <li key={e._id}>
-                    <button
-                      className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left hover:bg-muted"
-                      onClick={() => onPick(e)}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{e.name}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {titleCase(e.primaryMuscle)} · {titleCase(e.equipment)}
-                          {e.isCustom ? " · Custom" : ""}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-                {f.filtered.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">No matches</li>}
-              </ul>
-            )}
-          </div>
-        )}
+        {/* Keyed so tab, search and filters reset for each exercise being swapped. */}
+        <PickerBody key={similarTo?.exerciseId ?? "add"} exercises={exercises} onPick={onPick} similarTo={similarTo} />
       </SheetContent>
     </Sheet>
+  );
+}
+
+const RECOMMENDED_LIMIT = 12;
+
+function PickerBody({
+  exercises,
+  onPick,
+  similarTo,
+}: {
+  exercises: Doc<"exercises">[] | undefined;
+  onPick: (e: Doc<"exercises">) => void;
+  similarTo?: SimilarTo;
+}) {
+  const f = useExerciseFilter(exercises);
+  const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<"recommended" | "all">(similarTo ? "recommended" : "all");
+
+  const recommended = useMemo(() => {
+    if (!similarTo || !exercises) return [];
+    // The library copy carries secondary muscles; the local workout copy doesn't.
+    const current = exercises.find((e) => e._id === similarTo.exerciseId);
+    const target: SimilarityInput = current ?? { ...similarTo, secondaryMuscles: [] };
+    return rankSimilar(
+      target,
+      exercises.filter((e) => e._id !== similarTo.exerciseId),
+    ).slice(0, RECOMMENDED_LIMIT);
+  }, [exercises, similarTo]);
+
+  if (creating) {
+    return (
+      <CreateExerciseForm
+        initialName={f.q}
+        onDone={(e) => {
+          setCreating(false);
+          if (e) onPick(e);
+        }}
+      />
+    );
+  }
+
+  const loading = <p className="p-4 text-center text-sm text-muted-foreground">Loading library… (needs a connection)</p>;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {similarTo && (
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "recommended", label: "Recommended" },
+            { value: "all", label: "All" },
+          ]}
+        />
+      )}
+      {tab === "recommended" && similarTo ? (
+        <>
+          <p className="text-xs text-muted-foreground">Closest matches for {similarTo.name}, most similar first.</p>
+          {exercises === undefined ? (
+            loading
+          ) : (
+            <ul className="-mx-4 divide-y border-y">
+              {recommended.map((r) => (
+                <ExerciseRow key={r.exercise._id} e={r.exercise} detail={r.reasons.join(" · ")} onPick={onPick} />
+              ))}
+              {recommended.length === 0 && (
+                <li className="p-4 text-center text-sm text-muted-foreground">Nothing similar in your library</li>
+              )}
+            </ul>
+          )}
+        </>
+      ) : (
+        <>
+          <ExerciseFilters f={f} />
+          <Button variant="outline" onClick={() => setCreating(true)}>
+            <Plus /> Custom exercise{f.q ? ` "${f.q}"` : ""}
+          </Button>
+          {exercises === undefined ? (
+            loading
+          ) : (
+            <ul className="-mx-4 divide-y border-y">
+              {f.filtered.map((e) => (
+                <ExerciseRow key={e._id} e={e} onPick={onPick} />
+              ))}
+              {f.filtered.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">No matches</li>}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ExerciseRow({
+  e,
+  detail,
+  onPick,
+}: {
+  e: Doc<"exercises">;
+  /** Replaces the default "Muscle · Equipment" line. */
+  detail?: string;
+  onPick: (e: Doc<"exercises">) => void;
+}) {
+  return (
+    <li>
+      <button
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left hover:bg-muted"
+        onClick={() => onPick(e)}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{e.name}</span>
+          <span className="block text-xs text-muted-foreground">
+            {titleCase(e.primaryMuscle)} · {titleCase(e.equipment)}
+            {e.isCustom ? " · Custom" : ""}
+            {detail ? ` · ${detail}` : ""}
+          </span>
+        </span>
+      </button>
+    </li>
   );
 }
 
