@@ -134,9 +134,11 @@ export default function ProfilePage() {
         <Button variant="ghost" onClick={() => void signOut()}>
           <LogOut /> Sign out
         </Button>
-        <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-          {theme === "dark" ? <Moon className="size-3" /> : <Sun className="size-3" />} Install: Share → Add to Home Screen
-        </p>
+        {!native && (
+          <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+            {theme === "dark" ? <Moon className="size-3" /> : <Sun className="size-3" />} Install: Share → Add to Home Screen
+          </p>
+        )}
       </Page>
     </>
   );
