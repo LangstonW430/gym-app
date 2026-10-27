@@ -27,14 +27,15 @@ Apple ID from a Windows or Linux PC.
 You need a Windows or Linux PC once, for pairing. After that the phone
 refreshes the app on its own.
 
-1. On the phone: **Settings → Privacy & Security → Developer Mode → on**
-   (restart when asked).
-2. On the PC, follow the SideStore install guide at
+1. On the PC, follow the SideStore install guide at
    <https://docs.sidestore.io/docs/getting-started/>. In short: install
    iTunes and iCloud from Apple's site (not the Microsoft Store), install
    SideStore's companion app (AltServer), plug in the phone, and install
    SideStore from the AltServer tray icon. Sign in with your Apple ID: it is
    used only to request a free development certificate.
+2. iOS hides Developer Mode until a developer tool has talked to the phone,
+   so it only appears now: **Settings → Privacy & Security**, scroll to the
+   bottom, **Developer Mode → on**, restart when asked.
 3. On the phone, open SideStore once, let it set up its VPN profile, and
    copy the pairing file when the guide asks.
 4. Open the **ios-latest** release page in Safari on the phone, download
