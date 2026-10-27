@@ -101,4 +101,9 @@ jobs:
             gh release create ios-latest --repo "$GITHUB_REPOSITORY" --title "iPhone app (latest build)" \
               --notes "Unsigned build of the Gym iPhone app. Install with SideStore/AltStore; see IOS.md." --latest=false
           gh release upload ios-latest ios/build/Gym.ipa --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit ios-latest --repo "$GITHUB_REPOSITORY" --notes "Unsigned build of the Gym iPhone app from ${GITHUB_SHA::7} ($(date -u +%Y-%m-%d)). Install with SideStore/AltStore; see IOS.md."
+          IPA="https://github.com/$GITHUB_REPOSITORY/releases/download/ios-latest/Gym.ipa"
+          gh release edit ios-latest --repo "$GITHUB_REPOSITORY" --notes "Unsigned build of the Gym iPhone app from ${GITHUB_SHA::7} ($(date -u +%Y-%m-%d)).
+
+**One-tap install (SideStore already set up):** open this on the phone: \`sidestore://install?url=$IPA\`
+
+Otherwise download Gym.ipa below and open it with SideStore. See IOS.md."
