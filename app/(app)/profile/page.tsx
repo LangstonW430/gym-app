@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { BellRing, Bot, Copy, Download, LogOut, Moon, Sun, Upload } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Page, PageHeader, Section } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,12 @@ export default function ProfilePage() {
   const update = useMutation(api.users.updateSettings);
   const { signOut } = useAuthActions();
   const [theme, setThemeState] = useState<Theme>(() => (typeof window === "undefined" ? "dark" : getTheme()));
+  // Read after hydration so the server-rendered HTML matches the first client render.
+  const native = useSyncExternalStore(
+    () => () => {},
+    () => isNativeApp(),
+    () => false,
+  );
 
   const inv = s.plateInventory[s.units];
 
@@ -105,7 +111,7 @@ export default function ProfilePage() {
           </Card>
         </Section>
 
-        {isNativeApp() ? <LockScreenTimer /> : <PushAlerts />}
+        {native ? <LockScreenTimer /> : <PushAlerts />}
         <ClaudeConnection />
         <DataSection units={s.units} />
 
