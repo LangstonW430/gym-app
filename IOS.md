@@ -53,12 +53,14 @@ after that the phone refreshes the app on its own.
 
 ### Installing the Gym app
 
-1. In Safari on the phone, open the **ios-latest** release page and download
-   `Gym.ipa`.
-2. With LocalDevVPN connected, open SideStore → **My Apps** → **+** and pick
-   `Gym.ipa` from Downloads. If it asks about app extensions, include them:
+1. With LocalDevVPN connected, open this in Safari on the phone and tap
+   Open when it asks to open SideStore:
+   `sidestore://install?url=https://github.com/LangstonW430/gym-app/releases/download/ios-latest/Gym.ipa`
+   (Or download `Gym.ipa` from the **ios-latest** release page; Safari shows
+   a share sheet, so tap **SideStore** in it, or Save to Files and then use
+   **+** in SideStore.) If it asks about app extensions, include them:
    **RestActivity** is the lock-screen widget.
-3. **Settings → Gym → Live Activities → on**. Open the app and allow
+2. **Settings → Gym → Live Activities → on**. Open the app and allow
    notifications when it asks.
 
 ### What to expect on a free Apple ID
