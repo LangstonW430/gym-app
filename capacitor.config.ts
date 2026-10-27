@@ -13,7 +13,9 @@ const config: CapacitorConfig = {
   // Matches the dark theme's --background so over-scroll at the top/bottom
   // doesn't flash the WebView's default white.
   backgroundColor: "#111110",
-  ios: { contentInset: "automatic", scheme: "Gym" },
+  // "never": the site pads for the notch and home indicator itself (env(safe-area-inset-*)),
+  // so a native inset would let the page scroll past the tab bar.
+  ios: { contentInset: "never", scheme: "Gym" },
 };
 
 export default config;
