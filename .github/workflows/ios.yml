@@ -49,7 +49,17 @@ jobs:
       - run: npm ci
 
       - name: Sync Capacitor
-        run: npx cap sync ios
+        run: |
+          npx cap sync ios
+          # App-local plugins aren't npm packages, so sync doesn't list them; add
+          # them so the bridge auto-registers them at launch.
+          node -e '
+            const fs = require("fs"), p = "ios/App/App/capacitor.config.json";
+            const c = JSON.parse(fs.readFileSync(p, "utf8"));
+            c.packageClassList = [...new Set([...(c.packageClassList ?? []), "LiveActivityPlugin"])];
+            fs.writeFileSync(p, JSON.stringify(c, null, "\t"));
+            console.log(c.packageClassList);
+          '
 
       - name: Build (unsigned)
         run: |
