@@ -55,3 +55,26 @@ export async function syncRestActivity(rest: RestState | null): Promise<void> {
     // Live Activities off in Settings, or an old iOS: the in-app timer still works.
   }
 }
+
+/** For the Profile page: can this build show the lock-screen timer, and why not. */
+export async function liveActivityStatus(): Promise<{ native: boolean; available: boolean; error?: string }> {
+  if (!isNativeApp()) return { native: false, available: false };
+  try {
+    const { available } = await LiveActivity.isAvailable();
+    return { native: true, available };
+  } catch (e) {
+    return { native: true, available: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Starts a 30-second demo activity so the lock screen can be checked without a workout. */
+export async function testRestActivity(): Promise<void> {
+  const endsAt = Date.now() + 30_000;
+  await LiveActivity.start({ endsAt, totalSec: 30, label: "Test set", detail: "Lock your phone to see this" });
+  const perm = await LocalNotifications.requestPermissions();
+  if (perm.display === "granted") {
+    await LocalNotifications.schedule({
+      notifications: [{ id: REST_NOTIFICATION_ID, title: "Rest over", body: "Next: Test set", schedule: { at: new Date(endsAt) } }],
+    });
+  }
+}

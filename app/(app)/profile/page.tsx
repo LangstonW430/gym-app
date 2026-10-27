@@ -15,6 +15,7 @@ import { api } from "@/convex/_generated/api";
 import type { Units } from "@/convex/lib/shared";
 import { fmtDate, fmtRelativeDay } from "@/lib/format";
 import { bodyweightCsv, download, parseWorkoutCsv, setsCsv } from "@/lib/import-export";
+import { isNativeApp, liveActivityStatus, testRestActivity } from "@/lib/live-activity";
 import { useSettings } from "@/lib/settings";
 import { currentSubscription, deviceLabel, isIOS, isStandalone, pushSupported, subscribePush, unsubscribePush } from "@/lib/push";
 import { getTheme, setTheme, type Theme } from "@/lib/theme";
@@ -104,7 +105,7 @@ export default function ProfilePage() {
           </Card>
         </Section>
 
-        <PushAlerts />
+        {isNativeApp() ? <LockScreenTimer /> : <PushAlerts />}
         <ClaudeConnection />
         <DataSection units={s.units} />
 
@@ -324,6 +325,54 @@ function DataSection({ units }: { units: Units }) {
             </label>
             {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
           </div>
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
+function LockScreenTimer() {
+  const [status, setStatus] = useState<Awaited<ReturnType<typeof liveActivityStatus>> | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    void liveActivityStatus().then(setStatus);
+  }, []);
+  return (
+    <Section title="Lock-screen rest timer">
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <BellRing className="size-6 text-primary" />
+            <div className="flex-1">
+              <p className="font-medium">Live Activity</p>
+              <p className="text-xs text-muted-foreground">
+                The rest countdown and your next set on the lock screen, starting when you complete a set.
+              </p>
+            </div>
+            {status?.available && <Badge variant="success">On</Badge>}
+          </div>
+          {status && !status.available && (
+            <p className="text-sm text-muted-foreground">
+              {status.error
+                ? `Not reachable: ${status.error}`
+                : "Turned off. On the phone: Settings → Gym → Live Activities → on, then reopen the app."}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setMsg(null);
+              try {
+                await testRestActivity();
+                setMsg("Started a 30-second test. Lock your phone now.");
+              } catch (e) {
+                setMsg(e instanceof Error ? e.message : "Couldn't start the activity");
+              }
+            }}
+          >
+            Test on the lock screen
+          </Button>
+          {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
         </CardContent>
       </Card>
     </Section>
