@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
   appName: "Gym",
   webDir: "ios/www",
   server: { url, cleartext: false },
+  // Matches the dark theme's --background so over-scroll at the top/bottom
+  // doesn't flash the WebView's default white.
+  backgroundColor: "#111110",
   ios: { contentInset: "automatic", scheme: "Gym" },
 };
 
