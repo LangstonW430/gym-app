@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { patchLocal, useLocalWorkout } from "@/lib/active-workout";
 import { fmtDuration } from "@/lib/format";
 import { haptic, useNow } from "@/lib/hooks";
+import { isNativeApp, syncRestActivity } from "@/lib/live-activity";
 
 export function startRest(totalSec: number, label: string, detail?: string) {
   if (totalSec <= 0) return;
@@ -61,7 +62,7 @@ export function RestTimer() {
   const cancelRest = useMutation(api.push.cancelRest);
   const synced = useRef<{ endsAt: number; label: string } | null>(null);
   useEffect(() => {
-    if (!push || push.devices.length === 0) return;
+    if (isNativeApp() || !push || push.devices.length === 0) return;
     if (rest && rest.endsAt > Date.now()) {
       if (synced.current?.endsAt === rest.endsAt) return;
       const fresh = synced.current?.label !== rest.label;
@@ -76,6 +77,16 @@ export function RestTimer() {
       void cancelRest().catch(() => {});
     }
   }, [rest, push, scheduleRest, cancelRest]);
+
+  // In the iPhone app the countdown also lives on the lock screen as a Live
+  // Activity; keep it in step with every start, ±15 adjustment, skip and end.
+  const endsAt = rest?.endsAt;
+  const totalSec = rest?.totalSec;
+  const label = rest?.label;
+  const detail = rest?.detail;
+  useEffect(() => {
+    void syncRestActivity(endsAt && totalSec && label ? { endsAt, totalSec, label, detail } : null);
+  }, [endsAt, totalSec, label, detail]);
 
   useEffect(() => {
     if (!rest || remaining > 0 || fired.current === rest.endsAt) return;

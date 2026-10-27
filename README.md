@@ -6,6 +6,8 @@ routines. Phone-first PWA on Next.js + Convex.
 
 **First time? Follow [SETUP.md](./SETUP.md)** to connect Convex, Vercel, your phone, and Claude.
 
+**Want the rest timer on your iPhone lock screen?** See [IOS.md](./IOS.md) for the free, no-Mac build of the native shell.
+
 ## What's in it
 
 - **Workout logging** (`/workout`): last-time values in grey, double-progression
