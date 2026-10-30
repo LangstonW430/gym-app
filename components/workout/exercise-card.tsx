@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Disc3, History, Link2, Minus, MoreVertical, NotebookPen, Plus, Repeat, Timer, Trash2, Trophy } from "lucide-react";
+import { Check, Disc3, History, Link2, Minus, MoreVertical, NotebookPen, Plus, Repeat, Timer, Trash2, Trophy, Unlink } from "lucide-react";
 import { useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/input";
@@ -69,6 +69,19 @@ function updateSet(clientId: string, patch: Partial<LocalSet>) {
 
 function updateExercise(key: string, patch: Partial<LocalExercise>) {
   editWorkout((w) => ({ ...w, exercises: w.exercises.map((e) => (e.key === key ? { ...e, ...patch } : e)) }));
+}
+
+/** Put this exercise and the one after it in the same group (reusing either's letter). */
+function supersetWithNext(key: string) {
+  editWorkout((w) => {
+    const i = w.exercises.findIndex((e) => e.key === key);
+    const a = w.exercises[i];
+    const b = w.exercises[i + 1];
+    if (!a || !b) return w;
+    const used = new Set(w.exercises.map((e) => e.supersetGroup).filter(Boolean));
+    const g = a.supersetGroup ?? b.supersetGroup ?? [..."ABCDEFGHIJ"].find((l) => !used.has(l)) ?? "A";
+    return { ...w, exercises: w.exercises.map((e, j) => (j === i || j === i + 1 ? { ...e, supersetGroup: g } : e)) };
+  });
 }
 
 export function ExerciseCard({
@@ -152,14 +165,14 @@ export function ExerciseCard({
             >
               <Timer /> Rest time
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                const v = window.prompt("Superset group letter (empty to clear)", ex.supersetGroup ?? "A");
-                if (v !== null) updateExercise(ex.key, { supersetGroup: v.trim().toUpperCase() || undefined });
-              }}
-            >
-              <Link2 /> Superset…
+            <DropdownMenuItem onSelect={() => supersetWithNext(ex.key)}>
+              <Link2 /> Superset with next
             </DropdownMenuItem>
+            {ex.supersetGroup && (
+              <DropdownMenuItem onSelect={() => updateExercise(ex.key, { supersetGroup: undefined })}>
+                <Unlink /> Remove from superset
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
