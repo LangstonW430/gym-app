@@ -34,6 +34,7 @@ export const SEED_EXERCISES: Seed[] = [
   ["Push-Up", "chest", ["triceps", "front delts"], "bodyweight"],
   ["Incline Push-Up", "chest", ["triceps"], "bodyweight"],
   ["Chest Dip", "chest", ["triceps", "front delts"], "bodyweight", 120],
+  ["Assisted Dip (Machine)", "chest", ["triceps", "front delts"], "machine"],
 
   // Back
   ["Deadlift (Barbell)", "lower back", ["glutes", "hamstrings", "upper back", "traps", "forearms"], "barbell", 240],
@@ -49,6 +50,7 @@ export const SEED_EXERCISES: Seed[] = [
   ["Chin-Up", "lats", ["biceps"], "bodyweight", 150],
   ["Neutral-Grip Pull-Up", "lats", ["biceps", "upper back"], "bodyweight", 150],
   ["Assisted Pull-Up (Machine)", "lats", ["biceps"], "machine"],
+  ["Assisted Chin-Up (Machine)", "lats", ["biceps"], "machine"],
   ["Lat Pulldown (Cable)", "lats", ["biceps", "upper back"], "cable", 120],
   ["Close-Grip Lat Pulldown", "lats", ["biceps"], "cable", 120],
   ["Single-Arm Lat Pulldown", "lats", ["biceps"], "cable"],

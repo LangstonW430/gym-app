@@ -36,6 +36,7 @@ export const create = mutation({
     incrementLb: v.optional(v.number()),
     incrementKg: v.optional(v.number()),
     isBodyweight: v.optional(v.boolean()),
+    isAssisted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -55,6 +56,7 @@ export const update = mutation({
     incrementLb: v.optional(v.number()),
     incrementKg: v.optional(v.number()),
     isBodyweight: v.optional(v.boolean()),
+    isAssisted: v.optional(v.boolean()),
     archived: v.optional(v.boolean()),
   },
   handler: async (ctx, { id, ...rest }) => {

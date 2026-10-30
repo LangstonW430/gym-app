@@ -1,7 +1,7 @@
 "use client";
 
 import type { Doc, Id } from "@/convex/_generated/dataModel";
-import { suggestNext, uid, type Units, KG_PER_LB } from "@/convex/lib/shared";
+import { isAssistedExercise, suggestNext, uid, type Units, KG_PER_LB } from "@/convex/lib/shared";
 import { blankSet, newWorkout, type LastSession, type LocalExercise, type LocalSet, type LocalWorkout } from "./active-workout";
 
 type ExerciseDoc = Doc<"exercises">;
@@ -22,6 +22,7 @@ export function localExercise(
     equipment: ex.equipment,
     primaryMuscle: ex.primaryMuscle,
     isBodyweight: ex.isBodyweight,
+    isAssisted: isAssistedExercise(ex) || undefined,
     incrementLb: ex.incrementLb,
     incrementKg: ex.incrementKg,
     restSec: opts.restSec ?? ex.defaultRestSec,
@@ -36,7 +37,7 @@ export function localExercise(
 /** Pre-filled set rows: last time's values, bumped by double progression when earned. */
 export function prefillSets(ex: LocalExercise, count: number, units: Units): LocalSet[] {
   const last = ex.last?.sets ?? [];
-  const sugg = suggestNext(last, ex.repMin, ex.repMax, incrementKgFor(ex, units));
+  const sugg = suggestNext(last, ex.repMin, ex.repMax, incrementKgFor(ex, units), !!ex.isAssisted);
   const n = Math.max(count, 1);
   const out: LocalSet[] = [];
   for (let i = 0; i < n; i++) {

@@ -74,6 +74,8 @@ export default defineSchema({
     incrementKg: v.number(),
     defaultRestSec: v.number(),
     isBodyweight: v.boolean(),
+    // Weight field logs machine assistance; lower is better.
+    isAssisted: v.optional(v.boolean()),
     isCustom: v.boolean(),
     archived: v.optional(v.boolean()),
   })

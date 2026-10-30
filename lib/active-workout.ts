@@ -25,6 +25,8 @@ export interface LocalExercise {
   equipment: Equipment;
   primaryMuscle: string;
   isBodyweight: boolean;
+  /** Weight field is machine assistance; lower is better. */
+  isAssisted?: boolean;
   incrementLb: number;
   incrementKg: number;
   restSec: number;

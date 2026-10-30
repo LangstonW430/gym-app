@@ -6,6 +6,7 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { SEED_EXERCISES, isBodyweightSeed } from "./seedExercises";
+import { isAssistedExercise } from "./shared";
 import {
   DEFAULT_INCREMENTS,
   DEFAULT_PLATES,
@@ -95,6 +96,7 @@ export async function ensureSeeded(ctx: MutationCtx, userId: Id<"users">) {
       incrementKg: inc.kg,
       defaultRestSec: restSec ?? 90,
       isBodyweight: isBodyweightSeed(name),
+      isAssisted: isAssistedExercise({ name }) || undefined,
       isCustom: false,
     });
   }
@@ -118,6 +120,7 @@ export async function createExercise(
     incrementLb?: number;
     incrementKg?: number;
     isBodyweight?: boolean;
+    isAssisted?: boolean;
   },
 ) {
   const name = args.name.trim();
@@ -140,6 +143,7 @@ export async function createExercise(
     incrementKg: args.incrementKg ?? inc.kg,
     defaultRestSec: args.defaultRestSec ?? 90,
     isBodyweight: args.isBodyweight ?? args.equipment === "bodyweight",
+    isAssisted: args.isAssisted ?? (isAssistedExercise({ name }) || undefined),
     isCustom: true,
   });
 }
@@ -309,6 +313,9 @@ export async function recomputePRs(
       q.eq("userId", userId).eq("exerciseId", exerciseId).gt("completedAt", 0),
     )
     .collect();
+  const exercise = await ctx.db.get(exerciseId);
+  // Assisted: the "weight" record is the least assistance, and e1RM is meaningless.
+  const assisted = !!exercise && isAssistedExercise(exercise);
 
   type Rec = { value: number; prev?: number; set: Doc<"workoutSets"> };
   let bestWeight: Rec | undefined;
@@ -318,7 +325,12 @@ export async function recomputePRs(
   for (const s of sets) {
     const kinds: ("weight" | "e1rm" | "reps")[] = [];
     if (countsForStats(s.setType as SetType) && s.reps > 0) {
-      if (s.weight > 0) {
+      if (assisted) {
+        if (!bestWeight || s.weight < bestWeight.value - 1e-6) {
+          if (bestWeight) kinds.push("weight");
+          bestWeight = { value: s.weight, prev: bestWeight?.value, set: s };
+        }
+      } else if (s.weight > 0) {
         if (!bestWeight || s.weight > bestWeight.value + 1e-6) {
           if (bestWeight) kinds.push("weight");
           bestWeight = { value: s.weight, prev: bestWeight?.value, set: s };
@@ -431,6 +443,8 @@ export async function exerciseSessions(
       q.eq("userId", userId).eq("exerciseId", exerciseId).gte("completedAt", Math.max(1, from)).lte("completedAt", to),
     )
     .collect();
+  const exercise = await ctx.db.get(exerciseId);
+  const assisted = !!exercise && isAssistedExercise(exercise);
   const byWorkout = new Map<Id<"workouts">, Doc<"workoutSets">[]>();
   for (const s of sets) {
     const arr = byWorkout.get(s.workoutId) ?? [];
@@ -445,8 +459,10 @@ export async function exerciseSessions(
     let top: Doc<"workoutSets"> | undefined;
     let volume = 0;
     for (const s of working) {
-      best = Math.max(best, e1rm(s.weight, s.reps));
-      if (!top || s.weight > top.weight || (s.weight === top.weight && s.reps > top.reps)) top = s;
+      if (!assisted) best = Math.max(best, e1rm(s.weight, s.reps));
+      // Top set: heaviest, or for assisted lifts the least assistance; more reps breaks ties.
+      const better = assisted ? s.weight < (top?.weight ?? Infinity) : s.weight > (top?.weight ?? -Infinity);
+      if (!top || better || (s.weight === top.weight && s.reps > top.reps)) top = s;
       volume += s.weight * s.reps;
     }
     sessions.push({

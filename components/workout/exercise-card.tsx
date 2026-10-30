@@ -193,7 +193,8 @@ export function ExerciseCard({
 
       {sets.some((s) => s.progressed && !s.completedAt) && (
         <p className="px-3 pb-1 text-xs text-primary">
-          Hit {ex.repMax} reps on every set last time — weight up {fmtNum(units === "kg" ? ex.incrementKg : ex.incrementLb)} {units}.
+          Hit {ex.repMax} reps on every set last time — {ex.isAssisted ? "assistance down" : "weight up"}{" "}
+          {fmtNum(units === "kg" ? ex.incrementKg : ex.incrementLb)} {units}.
         </p>
       )}
       {notesOpen && (
@@ -210,7 +211,7 @@ export function ExerciseCard({
       <div className="grid grid-cols-[2.25rem_1fr_4.75rem_3.75rem_2.75rem_3rem] items-center gap-1.5 px-3 pt-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <span className="text-center">Set</span>
         <span>Last</span>
-        <span className="text-center">{ex.isBodyweight ? `+${units}` : units}</span>
+        <span className="text-center">{ex.isAssisted ? "Assist" : ex.isBodyweight ? `+${units}` : units}</span>
         <span className="text-center">Reps</span>
         <span className="text-center">RIR</span>
         <span />
