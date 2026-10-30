@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  Check,
-  Disc3,
-  History,
-  Link2,
-  Minus,
-  MoreVertical,
-  NotebookPen,
-  Plus,
-  Repeat,
-  Timer,
-  Trash2,
-  Trophy,
-} from "lucide-react";
+import { Check, Disc3, History, Link2, Minus, MoreVertical, NotebookPen, Plus, Repeat, Timer, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/input";
@@ -324,6 +311,20 @@ export function ExerciseCard({
           }}
         >
           <Plus className="size-4" /> Add set
+        </button>
+        <button
+          className="flex h-11 flex-1 items-center justify-center gap-1 rounded-lg bg-secondary text-sm font-medium disabled:opacity-40"
+          disabled={sets.length <= 1}
+          aria-label="Remove last set"
+          onClick={() => {
+            // Drop the last unfinished set, or the last set if they're all done.
+            // Tapping a set's number removes a specific one instead.
+            const target = [...sets].reverse().find((x) => !x.completedAt) ?? sets[sets.length - 1];
+            if (target.completedAt && !window.confirm("Remove the last completed set?")) return;
+            editWorkout((w) => ({ ...w, sets: w.sets.filter((x) => x.clientId !== target.clientId) }));
+          }}
+        >
+          <Minus className="size-4" /> Remove set
         </button>
       </div>
     </section>
