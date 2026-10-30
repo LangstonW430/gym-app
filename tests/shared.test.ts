@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   e1rm,
   fromDisplay,
+  isAssistedExercise,
   movementPattern,
   platesPerSide,
   rankSimilar,
@@ -127,5 +128,24 @@ describe("exercise similarity", () => {
     expect(movementPattern("Leg Press")).toBe("squat");
     expect(movementPattern("Chest Dip")).toBe("press");
     expect(movementPattern("Farmer's Walk")).toBeNull();
+  });
+});
+
+describe("assisted exercises", () => {
+  test("detected by flag, then by name", () => {
+    expect(isAssistedExercise({ name: "Assisted Pull-Up (Machine)" })).toBe(true);
+    expect(isAssistedExercise({ name: "Pull-Up" })).toBe(false);
+    expect(isAssistedExercise({ name: "Assisted Dip", isAssisted: false })).toBe(false);
+    expect(isAssistedExercise({ name: "Gravitron", isAssisted: true })).toBe(true);
+  });
+  test("progress by removing assistance, never below zero", () => {
+    const last = [
+      { setType: "working" as const, weight: 20, reps: 8 },
+      { setType: "working" as const, weight: 2, reps: 8 },
+    ];
+    expect(suggestNext(last, 5, 8, 2.5, true).map((s) => [s.weight, s.reps, s.progressed])).toEqual([
+      [17.5, 5, true],
+      [0, 5, true],
+    ]);
   });
 });

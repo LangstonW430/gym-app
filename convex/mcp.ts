@@ -29,7 +29,7 @@ import {
   workoutSetsOf,
   writeRoutineItems,
 } from "./lib/core";
-import { fromDisplay, toDisplay, type Units } from "./lib/shared";
+import { fromDisplay, toDisplay, type Units, isAssistedExercise } from "./lib/shared";
 import { routineItem } from "./routines";
 import { equipment, units } from "./schema";
 
@@ -140,6 +140,8 @@ function fmtExercise(e: Doc<"exercises">, u: Units) {
     defaultRestSec: e.defaultRestSec,
     increment: u === "kg" ? e.incrementKg : e.incrementLb,
     isBodyweight: e.isBodyweight || undefined,
+    // Weight = machine assistance; a lower number is the better set.
+    isAssisted: isAssistedExercise(e) || undefined,
     isCustom: e.isCustom || undefined,
   };
 }

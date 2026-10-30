@@ -119,6 +119,32 @@ describe("personal records", () => {
   });
 });
 
+describe("assisted exercises", () => {
+  test("less assistance is the weight PR and e1RM is skipped", async () => {
+    const { as, exercises } = await setup();
+    const pullup = exercises.find((e) => e.name === "Assisted Pull-Up (Machine)")!;
+    expect(pullup.isAssisted).toBe(true);
+    const day = 86_400_000;
+    const t0 = Date.now() - 10 * day;
+    await as.mutation(api.workouts.finish, {
+      snapshot: snapshot("a", pullup._id, [{ weight: 30, reps: 8 }], 1, t0),
+      endedAt: t0 + 3600_000,
+    });
+    const w2 = await as.mutation(api.workouts.finish, {
+      snapshot: snapshot("b", pullup._id, [{ weight: 35, reps: 10 }, { weight: 25, reps: 6 }], 1, t0 + day),
+      endedAt: t0 + day + 3600_000,
+    });
+    const d2 = await as.query(api.workouts.get, { id: w2 });
+    expect(d2.sets[0].prs).toBeUndefined(); // more assistance is not a PR, even with more reps
+    expect(d2.sets[1].prs).toEqual(["weight"]); // 25 lb of help beats 30
+    const h = await as.query(api.exercises.history, { exerciseId: pullup._id });
+    expect(h.records.find((r) => r.kind === "weight")?.value).toBe(25);
+    expect(h.records.find((r) => r.kind === "e1rm")).toBeUndefined();
+    expect(h.sessions[1].topSet).toEqual({ weight: 25, reps: 6 });
+    expect(h.sessions[1].e1rm).toBe(0);
+  });
+});
+
 describe("programs", () => {
   test("next up follows program order, not weekday", async () => {
     const { as, bench, squat } = await setup();

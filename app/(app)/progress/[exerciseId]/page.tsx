@@ -14,7 +14,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { NumberField } from "@/components/workout/exercise-card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { toDisplay } from "@/convex/lib/shared";
+import { toDisplay , isAssistedExercise } from "@/convex/lib/shared";
 import { fmtDate, fmtNum, fmtVolume, fmtW, titleCase } from "@/lib/format";
 import { useMountTime } from "@/lib/hooks";
 import { useSettings } from "@/lib/settings";
@@ -38,21 +38,26 @@ export default function ExerciseProgressPage() {
   );
   if (data === undefined) return <PageHeader title="Exercise" back="/progress" />;
   const { exercise, records } = data;
+  const assisted = isAssistedExercise(exercise);
+  // e1RM is meaningless for assisted lifts, so fall back to the assistance chart.
+  const shown: Metric = assisted && metric === "e1rm" ? "top" : metric;
 
   const series = sessions
     .map((s) => ({
       x: s.date,
-      y: metric === "e1rm" ? s.e1rm : metric === "top" ? (s.topSet?.weight ?? 0) : s.volume,
+      y: shown === "e1rm" ? s.e1rm : shown === "top" ? (s.topSet?.weight ?? 0) : s.volume,
     }))
-    .filter((p) => p.y > 0);
-  const fmt = (v: number) => (metric === "volume" ? fmtVolume(v, units) : fmtW(v, units));
+    .filter((p) => (assisted && shown === "top") || p.y > 0);
+  const fmt = (v: number) => (shown === "volume" ? fmtVolume(v, units) : fmtW(v, units));
 
   const bestWeight = records.find((r) => r.kind === "weight");
   const bestE1rm = records.find((r) => r.kind === "e1rm");
+  // Assisted: the lightest assistance is the best weight, so rank the other way.
   const repRecords = records
-    .filter((r) => r.kind === "reps" && (r.weight ?? 0) > 0)
-    .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
+    .filter((r) => r.kind === "reps" && (assisted || (r.weight ?? 0) > 0))
+    .sort((a, b) => (assisted ? (a.weight ?? 0) - (b.weight ?? 0) : (b.weight ?? 0) - (a.weight ?? 0)))
     .slice(0, 12);
+  const bestAssistedReps = assisted ? repRecords[0] : undefined;
   const isPinned = pinnedExerciseIds.includes(exerciseId);
 
   return (
@@ -82,14 +87,24 @@ export default function ExerciseProgressPage() {
         <div className="grid grid-cols-2 gap-2">
           <Card>
             <CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">Best e1RM</p>
-              <p className="num text-xl font-semibold">{bestE1rm ? fmtW(bestE1rm.value, units) : "—"}</p>
-              {bestE1rm && <p className="text-xs text-muted-foreground">{fmtDate(bestE1rm.achievedAt)}</p>}
+              <p className="text-xs text-muted-foreground">{assisted ? "Best reps" : "Best e1RM"}</p>
+              <p className="num text-xl font-semibold">
+                {assisted
+                  ? bestAssistedReps
+                    ? `${bestAssistedReps.value} @ ${fmtW(bestAssistedReps.weight ?? 0, units)}`
+                    : "—"
+                  : bestE1rm
+                    ? fmtW(bestE1rm.value, units)
+                    : "—"}
+              </p>
+              {assisted
+                ? bestAssistedReps && <p className="text-xs text-muted-foreground">{fmtDate(bestAssistedReps.achievedAt)}</p>
+                : bestE1rm && <p className="text-xs text-muted-foreground">{fmtDate(bestE1rm.achievedAt)}</p>}
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">Heaviest set</p>
+              <p className="text-xs text-muted-foreground">{assisted ? "Least assistance" : "Heaviest set"}</p>
               <p className="num text-xl font-semibold">{bestWeight ? fmtW(bestWeight.value, units) : "—"}</p>
               {bestWeight && <p className="text-xs text-muted-foreground">{fmtDate(bestWeight.achievedAt)}</p>}
             </CardContent>
@@ -115,16 +130,16 @@ export default function ExerciseProgressPage() {
         <Card>
           <CardContent className="flex flex-col gap-3 p-3">
             <Segmented
-              value={metric}
+              value={shown}
               onChange={setMetric}
               options={[
-                { value: "e1rm", label: "e1RM" },
-                { value: "top", label: "Top set" },
+                ...(assisted ? [] : [{ value: "e1rm" as const, label: "e1RM" }]),
+                { value: "top", label: assisted ? "Assistance" : "Top set" },
                 { value: "volume", label: "Volume" },
               ]}
             />
             {series.length >= 2 ? (
-              <TimeLineChart data={series} format={fmt} name={metric === "e1rm" ? "Estimated 1RM" : metric === "top" ? "Heaviest set" : "Session volume"} />
+              <TimeLineChart data={series} format={fmt} name={shown === "e1rm" ? "Estimated 1RM" : shown === "top" ? (assisted ? "Least assistance" : "Heaviest set") : "Session volume"} />
             ) : (
               <p className="py-10 text-center text-sm text-muted-foreground">
                 {series.length === 1 ? "One session so far — the graph starts at two." : "No sessions in this range."}
@@ -196,7 +211,16 @@ export default function ExerciseProgressPage() {
 function ExerciseSettings({
   exercise,
 }: {
-  exercise: { _id: Id<"exercises">; defaultRestSec: number; incrementLb: number; incrementKg: number; isBodyweight: boolean; name: string; isCustom: boolean };
+  exercise: {
+    _id: Id<"exercises">;
+    defaultRestSec: number;
+    incrementLb: number;
+    incrementKg: number;
+    isBodyweight: boolean;
+    isAssisted?: boolean;
+    name: string;
+    isCustom: boolean;
+  };
 }) {
   const update = useMutation(api.exercises.update);
   const [name, setName] = useState(exercise.name);
@@ -234,6 +258,18 @@ function ExerciseSettings({
               className="size-5 accent-[var(--primary)]"
               checked={exercise.isBodyweight}
               onChange={(e) => update({ id: exercise._id, isBodyweight: e.target.checked })}
+            />
+          </label>
+          <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
+            <span>
+              Assisted exercise
+              <span className="block text-xs text-muted-foreground">Weight field logs machine assistance; less is a PR.</span>
+            </span>
+            <input
+              type="checkbox"
+              className="size-5 accent-[var(--primary)]"
+              checked={isAssistedExercise(exercise)}
+              onChange={(e) => update({ id: exercise._id, isAssisted: e.target.checked })}
             />
           </label>
         </CardContent>

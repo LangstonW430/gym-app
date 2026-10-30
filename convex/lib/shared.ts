@@ -93,6 +93,16 @@ export function e1rm(weight: number, reps: number): number {
   return weight * (1 + reps / 30);
 }
 
+/**
+ * Assisted exercises (assisted pull-up/dip machines) log the assistance in the
+ * weight field, so less is better: PRs, progression and charts all invert.
+ * The flag wins when set; otherwise the name decides, so existing libraries
+ * work without a migration.
+ */
+export function isAssistedExercise(e: { name: string; isAssisted?: boolean }): boolean {
+  return e.isAssisted ?? /\bassist/i.test(e.name);
+}
+
 export function countsForStats(setType: SetType): boolean {
   return setType !== "warmup";
 }
@@ -114,6 +124,7 @@ export function suggestNext(
   repMin: number | undefined,
   repMax: number | undefined,
   incrementKg: number,
+  assisted = false,
 ): { weight: number; reps: number; progressed: boolean }[] {
   const working = last.filter((s) => s.setType !== "warmup");
   const canProgress =
@@ -125,7 +136,8 @@ export function suggestNext(
       return { weight: s.weight, reps: s.reps, progressed: false };
     }
     return {
-      weight: s.weight + incrementKg,
+      // Assisted lifts progress by taking assistance away.
+      weight: assisted ? Math.max(0, s.weight - incrementKg) : s.weight + incrementKg,
       reps: repMin ?? s.reps,
       progressed: true,
     };
