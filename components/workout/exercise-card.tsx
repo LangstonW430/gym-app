@@ -63,6 +63,18 @@ export function NumberField({
   );
 }
 
+/** e1RM and heaviest-weight records are strength PRs; "reps" is most reps at a weight. */
+export function isStrengthPR(prs: string[]): boolean {
+  return prs.includes("e1rm") || prs.includes("weight");
+}
+
+export function prTitle(prs: string[]): string {
+  const parts = [];
+  if (isStrengthPR(prs)) parts.push("New e1RM");
+  if (prs.includes("reps")) parts.push("Most reps at this weight");
+  return `PR: ${parts.join(", ")}`;
+}
+
 function updateSet(clientId: string, patch: Partial<LocalSet>) {
   editWorkout((w) => ({ ...w, sets: w.sets.map((s) => (s.clientId === clientId ? { ...s, ...patch } : s)) }));
 }
@@ -208,12 +220,11 @@ export function ExerciseCard({
         </div>
       )}
 
-      <div className="grid grid-cols-[2.25rem_1fr_4.75rem_3.75rem_2.75rem_3rem] items-center gap-1.5 px-3 pt-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="grid grid-cols-[2.25rem_1fr_4.75rem_3.75rem_3rem] items-center gap-1.5 px-3 pt-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <span className="text-center">Set</span>
         <span>Last</span>
         <span className="text-center">{ex.isAssisted ? "Assist" : ex.isBodyweight ? `+${units}` : units}</span>
         <span className="text-center">Reps</span>
-        <span className="text-center">RIR</span>
         <span />
       </div>
 
@@ -226,7 +237,7 @@ export function ExerciseCard({
           const wDisp = s.weight == null ? null : toDisplay(s.weight, units);
           return (
             <li key={s.clientId} className={cn("px-3 py-1 transition-colors", done && "bg-success-soft")}>
-              <div className="grid grid-cols-[2.25rem_1fr_4.75rem_3.75rem_2.75rem_3rem] items-center gap-1.5">
+              <div className="grid grid-cols-[2.25rem_1fr_4.75rem_3.75rem_3rem] items-center gap-1.5">
                 <SetTypeMenu
                   label={label}
                   type={s.setType}
@@ -253,14 +264,6 @@ export function ExerciseCard({
                   onFocus={() => setActive({ id: s.clientId, field: "reps" })}
                   onCommit={(v) => updateSet(s.clientId, { reps: v == null ? null : Math.max(0, Math.round(v)) })}
                 />
-                <NumberField
-                  label={`${ex.name} set ${label} reps in reserve`}
-                  value={s.rir ?? null}
-                  decimal={false}
-                  placeholder="–"
-                  className="text-base"
-                  onCommit={(v) => updateSet(s.clientId, { rir: v == null ? undefined : Math.max(0, Math.min(10, Math.round(v))) })}
-                />
                 <button
                   aria-label={done ? "Mark set not done" : "Complete set"}
                   aria-pressed={done}
@@ -275,7 +278,14 @@ export function ExerciseCard({
                 >
                   <Check className="size-6" strokeWidth={3} />
                   {s.prs?.length ? (
-                    <span className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground" title={`PR: ${s.prs.join(", ")}`}>
+                    // Yellow: a strength PR (new e1RM / heaviest). Blue: most reps at this weight.
+                    <span
+                      className={cn(
+                        "absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full",
+                        isStrengthPR(s.prs) ? "bg-amber-400 text-black" : "bg-primary text-primary-foreground",
+                      )}
+                      title={prTitle(s.prs)}
+                    >
                       <Trophy className="size-3" />
                     </span>
                   ) : null}

@@ -9,12 +9,13 @@ import { Page, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Label, NativeSelect, Textarea } from "@/components/ui/input";
-import { NumberField } from "@/components/workout/exercise-card";
+import { isStrengthPR, NumberField } from "@/components/workout/exercise-card";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { fromDisplay, SET_TYPES, toDisplay, uid, type SetType } from "@/convex/lib/shared";
 import { fmtDate, fmtMinutes, fmtNum, fmtVolume, fmtW, SET_TYPE_LABEL } from "@/lib/format";
 import { useSettings } from "@/lib/settings";
+import { cn } from "@/lib/utils";
 
 export default function WorkoutDetailPage() {
   const { id } = useParams<{ id: Id<"workouts"> }>();
@@ -84,10 +85,9 @@ export default function WorkoutDetailPage() {
                         <td className="py-2">
                           {fmtW(s.weight, units)} × {s.reps}
                         </td>
-                        <td className="py-2 text-muted-foreground">{s.rir !== undefined ? `RIR ${s.rir}` : ""}</td>
                         <td className="py-2 text-right">
                           {s.prs?.length ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            <span className={cn("inline-flex items-center gap-1 text-xs font-medium", isStrengthPR(s.prs) ? "text-amber-400" : "text-primary")}>
                               <Trophy className="size-3" /> {s.prs.map((k) => (k === "e1rm" ? "e1RM" : k)).join(" ")}
                             </span>
                           ) : null}
