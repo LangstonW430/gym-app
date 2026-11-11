@@ -145,6 +145,24 @@ describe("assisted exercises", () => {
   });
 });
 
+describe("removing exercises", () => {
+  test("deletes an unused exercise, archives one with history", async () => {
+    const { as, bench, squat } = await setup();
+    expect(await as.mutation(api.exercises.remove, { id: squat._id })).toEqual({ archived: false });
+    const t0 = Date.now() - 86_400_000;
+    await as.mutation(api.workouts.finish, { snapshot: snapshot("a", bench._id, [{ weight: 100, reps: 5 }], 1, t0), endedAt: t0 + 1 });
+    expect(await as.mutation(api.exercises.remove, { id: bench._id })).toEqual({ archived: true });
+    const names = (await as.query(api.exercises.list, {})).map((e) => e.name);
+    expect(names).not.toContain("Squat (Barbell)");
+    expect(names).not.toContain("Bench Press (Barbell)");
+    const all = await as.query(api.exercises.list, { includeArchived: true });
+    expect(all.find((e) => e._id === bench._id)?.archived).toBe(true);
+    expect(all.find((e) => e._id === squat._id)).toBeUndefined();
+    // History survives archiving.
+    expect((await as.query(api.exercises.history, { exerciseId: bench._id })).sessions).toHaveLength(1);
+  });
+});
+
 describe("programs", () => {
   test("next up follows program order, not weekday", async () => {
     const { as, bench, squat } = await setup();
