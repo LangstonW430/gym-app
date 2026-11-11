@@ -1,20 +1,21 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { Pin, PinOff, Trophy } from "lucide-react";
-import { useParams } from "next/navigation";
+import { ArchiveRestore, Pin, PinOff, Trash2, Trophy } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BodyHeatMap, heatFromExercise, HeatLegend } from "@/components/body-map";
 import { TimeLineChart } from "@/components/charts/charts";
 import { Empty, Page, PageHeader, Section } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
 import { NumberField } from "@/components/workout/exercise-card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { toDisplay , isAssistedExercise } from "@/convex/lib/shared";
+import { EQUIPMENT, MUSCLES, isAssistedExercise, toDisplay, type Equipment } from "@/convex/lib/shared";
+import { cn } from "@/lib/utils";
 import { fmtDate, fmtNum, fmtVolume, fmtW, titleCase } from "@/lib/format";
 import { useMountTime } from "@/lib/hooks";
 import { useSettings } from "@/lib/settings";
@@ -219,21 +220,95 @@ function ExerciseSettings({
     isBodyweight: boolean;
     isAssisted?: boolean;
     name: string;
+    primaryMuscle: string;
+    secondaryMuscles: string[];
+    equipment: Equipment;
     isCustom: boolean;
+    archived?: boolean;
   };
 }) {
   const update = useMutation(api.exercises.update);
+  const remove = useMutation(api.exercises.remove);
+  const router = useRouter();
   const [name, setName] = useState(exercise.name);
+  const [error, setError] = useState<string | null>(null);
+  const toggleSecondary = (m: string) =>
+    update({
+      id: exercise._id,
+      secondaryMuscles: exercise.secondaryMuscles.includes(m)
+        ? exercise.secondaryMuscles.filter((x) => x !== m)
+        : [...exercise.secondaryMuscles, m],
+    });
   return (
     <Section title="Exercise settings">
       <Card>
         <CardContent className="flex flex-col gap-3 p-4">
-          {exercise.isCustom && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={async () => {
+                if (!name.trim() || name.trim() === exercise.name) return;
+                try {
+                  setError(null);
+                  await update({ id: exercise._id, name: name.trim() });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message.replace(/^.*ConvexError: /, "").split("\n")[0] : "Couldn't rename");
+                  setName(exercise.name);
+                }
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name !== exercise.name && update({ id: exercise._id, name: name.trim() })} />
+              <Label>Primary muscle</Label>
+              <NativeSelect
+                value={exercise.primaryMuscle}
+                onChange={(e) =>
+                  update({
+                    id: exercise._id,
+                    primaryMuscle: e.target.value,
+                    secondaryMuscles: exercise.secondaryMuscles.filter((m) => m !== e.target.value),
+                  })
+                }
+              >
+                {MUSCLES.map((m) => (
+                  <option key={m} value={m}>
+                    {titleCase(m)}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
-          )}
+            <div className="flex flex-col gap-1.5">
+              <Label>Equipment</Label>
+              <NativeSelect value={exercise.equipment} onChange={(e) => update({ id: exercise._id, equipment: e.target.value as Equipment })}>
+                {EQUIPMENT.map((m) => (
+                  <option key={m} value={m}>
+                    {titleCase(m)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Secondary muscles</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {MUSCLES.filter((m) => m !== exercise.primaryMuscle).map((m) => {
+                const on = exercise.secondaryMuscles.includes(m);
+                return (
+                  <button
+                    type="button"
+                    key={m}
+                    onClick={() => toggleSecondary(m)}
+                    className={cn("min-h-9 rounded-full border px-3 text-xs", on && "border-primary bg-primary/15 text-primary")}
+                  >
+                    {titleCase(m)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1.5">
               <Label>Rest (s)</Label>
@@ -272,6 +347,24 @@ function ExerciseSettings({
               onChange={(e) => update({ id: exercise._id, isAssisted: e.target.checked })}
             />
           </label>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {exercise.archived ? (
+            <Button variant="outline" onClick={() => update({ id: exercise._id, archived: false })}>
+              <ArchiveRestore /> Restore to library
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              className="text-destructive"
+              onClick={async () => {
+                if (!window.confirm(`Remove ${exercise.name} from your library? Past workouts keep their history.`)) return;
+                await remove({ id: exercise._id });
+                router.replace("/exercises");
+              }}
+            >
+              <Trash2 /> Remove from library
+            </Button>
+          )}
         </CardContent>
       </Card>
     </Section>

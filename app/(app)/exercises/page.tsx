@@ -13,7 +13,8 @@ import { api } from "@/convex/_generated/api";
 import { titleCase } from "@/lib/format";
 
 export default function ExerciseLibraryPage() {
-  const exercises = useQuery(api.exercises.list, {});
+  const [showArchived, setShowArchived] = useState(false);
+  const exercises = useQuery(api.exercises.list, { includeArchived: showArchived });
   const f = useExerciseFilter(exercises);
   const [creating, setCreating] = useState(false);
 
@@ -31,6 +32,10 @@ export default function ExerciseLibraryPage() {
       />
       <Page>
         <ExerciseFilters f={f} />
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input type="checkbox" className="size-4 accent-[var(--primary)]" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          Show archived
+        </label>
         <Card>
           <ul className="divide-y">
             {f.filtered.map((e) => (
@@ -42,6 +47,7 @@ export default function ExerciseLibraryPage() {
                       {titleCase(e.primaryMuscle)}
                       {e.secondaryMuscles.length ? ` (+${e.secondaryMuscles.map(titleCase).join(", ")})` : ""} · {titleCase(e.equipment)}
                       {e.isCustom ? " · Custom" : ""}
+                      {e.archived ? " · Archived" : ""}
                     </span>
                   </span>
                   <ChevronRight className="size-4 text-muted-foreground" />

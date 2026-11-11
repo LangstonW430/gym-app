@@ -89,3 +89,41 @@ export const history = query({
     };
   },
 });
+
+/**
+ * Remove an exercise from the library. With logged sets it is archived (hidden
+ * from the library and pickers; history and PRs stay); with none it is deleted
+ * outright along with its routine rows.
+ */
+export const remove = mutation({
+  args: { id: v.id("exercises") },
+  handler: async (ctx, { id }) => {
+    const userId = await requireUserId(ctx);
+    await ownedExercise(ctx, userId, id);
+    const user = await ctx.db.get(userId);
+    if (user?.pinnedExerciseIds?.includes(id)) {
+      await ctx.db.patch(userId, { pinnedExerciseIds: user.pinnedExerciseIds.filter((x) => x !== id) });
+    }
+    const logged = await ctx.db
+      .query("workoutSets")
+      .withIndex("by_user_exercise_time", (q) => q.eq("userId", userId).eq("exerciseId", id))
+      .first();
+    if (logged) {
+      await ctx.db.patch(id, { archived: true });
+      return { archived: true as const };
+    }
+    const routines = await ctx.db
+      .query("routines")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const r of routines) {
+      const rows = await ctx.db
+        .query("routineExercises")
+        .withIndex("by_routine", (q) => q.eq("routineId", r._id))
+        .collect();
+      for (const row of rows) if (row.exerciseId === id) await ctx.db.delete(row._id);
+    }
+    await ctx.db.delete(id);
+    return { archived: false as const };
+  },
+});
