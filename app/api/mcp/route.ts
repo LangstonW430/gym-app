@@ -1,6 +1,8 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { ConvexHttpClient } from "convex/browser";
+import { after } from "next/server";
 import { api } from "@/convex/_generated/api";
+import { flushLangfuse } from "@/lib/langfuse";
 import { buildMcpServer } from "@/lib/mcp-server";
 
 // Remote MCP server for the claude.ai custom connector.
@@ -49,6 +51,8 @@ async function handle(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request) {
+  // Export the tool spans before the function is frozen. No-op without tracing.
+  after(flushLangfuse);
   return handle(req);
 }
 
