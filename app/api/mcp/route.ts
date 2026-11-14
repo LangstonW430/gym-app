@@ -30,13 +30,14 @@ async function handle(req: Request): Promise<Response> {
   if (!token) return jsonRpcError(401, "Missing token. Create a connector URL in the app's Profile screen.");
 
   const convex = new ConvexHttpClient(url);
+  let tokenId: string;
   try {
-    await convex.mutation(api.mcp.authenticate, { token });
+    ({ tokenId } = await convex.mutation(api.mcp.authenticate, { token }));
   } catch {
     return jsonRpcError(401, "Invalid or revoked token.");
   }
 
-  const server = buildMcpServer(convex, token);
+  const server = buildMcpServer(convex, token, tokenId);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

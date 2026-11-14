@@ -6,6 +6,7 @@ import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { EQUIPMENT, MUSCLES } from "@/convex/lib/shared";
+import { traceTool } from "@/lib/tracing";
 
 // The MCP server Claude talks to. Every tool forwards to a token-gated Convex
 // function in convex/mcp.ts. There are no delete tools by design.
@@ -35,7 +36,10 @@ function errorResult(e: unknown) {
   return { content: [{ type: "text" as const, text: `Error: ${clean}` }], isError: true };
 }
 
-export function buildMcpServer(convex: ConvexHttpClient, token: string) {
+// tokenId is the mcpTokens row id, used only to attribute traces (never the token).
+type CallResult = ReturnType<typeof result> | ReturnType<typeof errorResult>;
+
+export function buildMcpServer(convex: ConvexHttpClient, token: string, tokenId: string) {
   const server = new McpServer(
     { name: "gym-tracker", version: "1.0.0" },
     {
@@ -46,13 +50,14 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
     },
   );
 
-  const run = async <T>(fn: () => Promise<T>) => {
-    try {
-      return result(await fn());
-    } catch (e) {
-      return errorResult(e);
-    }
-  };
+  const run = <T>(toolName: string, args: unknown, fn: () => Promise<T>) =>
+    traceTool<CallResult>(toolName, args, tokenId, async () => {
+      try {
+        return result(await fn());
+      } catch (e) {
+        return errorResult(e);
+      }
+    });
 
   // ---- Read tools ---------------------------------------------------------
 
@@ -69,7 +74,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       },
       annotations: READ,
     },
-    (args) => run(() => convex.query(api.mcp.listExercises, { token, ...args })),
+    (args) => run("list_exercises", args, () => convex.query(api.mcp.listExercises, { token, ...args })),
   );
 
   server.registerTool(
@@ -80,7 +85,10 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { programId: z.string().optional() },
       annotations: READ,
     },
-    ({ programId }) => run(() => convex.query(api.mcp.getProgram, { token, programId: programId as Id<"programs"> | undefined })),
+    (args) => {
+      const { programId } = args;
+      return run("get_program", args, () => convex.query(api.mcp.getProgram, { token, programId: programId as Id<"programs"> | undefined }));
+    },
   );
 
   server.registerTool(
@@ -91,7 +99,10 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { routineId: z.string() },
       annotations: READ,
     },
-    ({ routineId }) => run(() => convex.query(api.mcp.getRoutine, { token, routineId: routineId as Id<"routines"> })),
+    (args) => {
+      const { routineId } = args;
+      return run("get_routine", args, () => convex.query(api.mcp.getRoutine, { token, routineId: routineId as Id<"routines"> }));
+    },
   );
 
   server.registerTool(
@@ -102,7 +113,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { from: date.optional(), to: date.optional() },
       annotations: READ,
     },
-    (args) => run(() => convex.query(api.mcp.listWorkoutsTool, { token, ...args })),
+    (args) => run("list_workouts", args, () => convex.query(api.mcp.listWorkoutsTool, { token, ...args })),
   );
 
   server.registerTool(
@@ -113,7 +124,10 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { workoutId: z.string() },
       annotations: READ,
     },
-    ({ workoutId }) => run(() => convex.query(api.mcp.getWorkout, { token, workoutId: workoutId as Id<"workouts"> })),
+    (args) => {
+      const { workoutId } = args;
+      return run("get_workout", args, () => convex.query(api.mcp.getWorkout, { token, workoutId: workoutId as Id<"workouts"> }));
+    },
   );
 
   server.registerTool(
@@ -124,8 +138,10 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { exerciseId: z.string(), from: date.optional(), to: date.optional() },
       annotations: READ,
     },
-    ({ exerciseId, ...rest }) =>
-      run(() => convex.query(api.mcp.getExerciseHistory, { token, exerciseId: exerciseId as Id<"exercises">, ...rest })),
+    (args) => {
+      const { exerciseId, ...rest } = args;
+      return run("get_exercise_history", args, () => convex.query(api.mcp.getExerciseHistory, { token, exerciseId: exerciseId as Id<"exercises">, ...rest }));
+    },
   );
 
   server.registerTool(
@@ -136,7 +152,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { from: date.optional(), to: date.optional() },
       annotations: READ,
     },
-    (args) => run(() => convex.query(api.mcp.getProgressSummary, { token, ...args })),
+    (args) => run("get_progress_summary", args, () => convex.query(api.mcp.getProgressSummary, { token, ...args })),
   );
 
   server.registerTool(
@@ -147,7 +163,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       inputSchema: { from: date.optional(), to: date.optional() },
       annotations: READ,
     },
-    (args) => run(() => convex.query(api.mcp.getBodyweight, { token, ...args })),
+    (args) => run("get_bodyweight", args, () => convex.query(api.mcp.getBodyweight, { token, ...args })),
   );
 
   // ---- Write tools (no deletes anywhere) -------------------------------------
@@ -167,7 +183,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       annotations: { ...WRITE, idempotentHint: false },
     },
     (args) =>
-      run(() =>
+      run("create_exercise", args, () =>
         convex.mutation(api.mcp.createExerciseTool, {
           token,
           ...args,
@@ -190,15 +206,17 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       },
       annotations: WRITE,
     },
-    ({ programId, exercises, ...rest }) =>
-      run(() =>
+    (args) => {
+      const { programId, exercises, ...rest } = args;
+      return run("create_routine", args, () =>
         convex.mutation(api.mcp.createRoutineTool, {
           token,
           ...rest,
           programId: programId as Id<"programs"> | undefined,
           exercises: exercises.map((e) => ({ ...e, exerciseId: e.exerciseId as Id<"exercises"> })),
         }),
-      ),
+      );
+    },
   );
 
   server.registerTool(
@@ -216,15 +234,17 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       // Replaces the live version, but the old one is kept (archived).
       annotations: { ...WRITE, destructiveHint: true },
     },
-    ({ routineId, exercises, ...rest }) =>
-      run(() =>
+    (args) => {
+      const { routineId, exercises, ...rest } = args;
+      return run("update_routine", args, () =>
         convex.mutation(api.mcp.updateRoutineTool, {
           token,
           ...rest,
           routineId: routineId as Id<"routines">,
           exercises: exercises?.map((e) => ({ ...e, exerciseId: e.exerciseId as Id<"exercises"> })),
         }),
-      ),
+      );
+    },
   );
 
   server.registerTool(
@@ -240,14 +260,16 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       },
       annotations: WRITE,
     },
-    ({ routineIds, ...rest }) =>
-      run(() =>
+    (args) => {
+      const { routineIds, ...rest } = args;
+      return run("create_program", args, () =>
         convex.mutation(api.mcp.createProgramTool, {
           token,
           ...rest,
           routineIds: routineIds as Id<"routines">[],
         }),
-      ),
+      );
+    },
   );
 
   server.registerTool(
@@ -262,7 +284,7 @@ export function buildMcpServer(convex: ConvexHttpClient, token: string) {
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
-    (args) => run(() => convex.mutation(api.mcp.logBodyweightTool, { token, ...args })),
+    (args) => run("log_bodyweight", args, () => convex.mutation(api.mcp.logBodyweightTool, { token, ...args })),
   );
 
   return server;
