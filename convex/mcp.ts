@@ -112,7 +112,8 @@ export const authenticate = mutation({
     if (!tokenRow.lastUsedAt || Date.now() - tokenRow.lastUsedAt > 60_000) {
       await ctx.db.patch(tokenRow._id, { lastUsedAt: Date.now() });
     }
-    return { ok: true };
+    // The row id (not the token) lets the MCP route attribute traces.
+    return { ok: true, tokenId: tokenRow._id };
   },
 });
 

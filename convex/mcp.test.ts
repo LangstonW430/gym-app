@@ -23,7 +23,7 @@ async function connect() {
     mutation: (ref: any, args: any) => t.mutation(ref, args),
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  const server = buildMcpServer(fake as unknown as ConvexHttpClient, token);
+  const server = buildMcpServer(fake as unknown as ConvexHttpClient, token, "test-token-id");
   const [a, b] = InMemoryTransport.createLinkedPair();
   await server.connect(a);
   const client = new Client({ name: "test", version: "1" });
